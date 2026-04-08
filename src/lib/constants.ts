@@ -15,6 +15,6 @@ export const ACCEPTED_IMAGE_TYPES = [
   "image/webp",
 ];
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
 export const SIGNED_URL_EXPIRY = 3600; // 1 hour in seconds

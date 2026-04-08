@@ -18,19 +18,23 @@ export default function NewAlbumPage() {
 
     const formData = new FormData(event.currentTarget);
     const title = formData.get("title") as string;
-    // For MVP, we'll auto-create or mock a client ID
-    // In full implementation, there should be a client select dropdown
+    const clientName = formData.get("clientName") as string;
+    const clientPhone = formData.get("clientPhone") as string;
+
+    if (!/^\d{10}$/.test(clientPhone)) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      // Temporary hack to create client if API doesn't exist yet, 
-      // but we will assume we pass a dummy clientId to the album API for now
-      // since Client CRUD requires its own pages.
       const res = await fetch("/api/albums", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           title, 
-          clientId: "dummy-client-id-replace-later" // TODO: fix this
+          clientName,
+          clientPhone
         }),
       });
 
@@ -64,11 +68,27 @@ export default function NewAlbumPage() {
               <Label htmlFor="title">Album Title</Label>
               <Input id="title" name="title" required placeholder="e.g. Smith Wedding" disabled={isLoading} />
             </div>
-            
-            {/* Note: Client Selection Omitted for MVP Speed */}
-            <div className="bg-amber-500/10 p-4 rounded-md text-amber-500 text-sm">
-              Note: The database requires a valid Client to create an album. 
-              Ensure Client creation exists in API or DB seed.
+            <div className="space-y-2">
+              <Label htmlFor="clientName">Client Name</Label>
+              <Input id="clientName" name="clientName" required placeholder="e.g. John Doe" disabled={isLoading} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="clientPhone">Mobile Number</Label>
+              <Input 
+                id="clientPhone" 
+                name="clientPhone" 
+                type="tel" 
+                required 
+                placeholder="10-digit number (e.g. 9876543210)" 
+                pattern="\d{10}"
+                maxLength={10}
+                disabled={isLoading} 
+              />
+            </div>
+
+            <div className="bg-emerald-500/10 p-4 rounded-md text-emerald-500 text-sm">
+              Note: This will create a new client record and a secure gallery link for them.
             </div>
 
             <Button type="submit" disabled={isLoading}>

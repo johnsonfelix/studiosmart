@@ -25,7 +25,7 @@ export async function getAlbumsByStudio(
         select: { photos: true },
       },
       client: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, phone: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -43,6 +43,9 @@ export async function getAlbumById(id: string, studioId?: string) {
     include: {
       client: true,
       studio: true,
+      photos: {
+        orderBy: { fileName: "asc" },
+      },
       _count: {
         select: { photos: true },
       },
@@ -55,7 +58,10 @@ export async function getAlbumByToken(accessToken: string) {
     where: { accessToken, isActive: true },
     include: {
       studio: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true, email: true } },
+      client: { select: { id: true, name: true, phone: true } },
+      photos: {
+        orderBy: { fileName: "asc" },
+      },
     },
   });
 }

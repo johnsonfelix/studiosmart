@@ -40,6 +40,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    await deleteAlbumPhotos(id);
     await deleteAlbum(id);
 
     return NextResponse.json({ success: true });

@@ -15,7 +15,7 @@ export async function getPhotosByAlbum(
       where: { albumId },
       skip: offset,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy: { fileName: "asc" },
       include: clientId
         ? {
             selections: {
@@ -28,7 +28,7 @@ export async function getPhotosByAlbum(
   ]);
 
   const items = await Promise.all(
-    photos.map(async (photo) => {
+    photos.map(async (photo: any) => {
       const isSelected = clientId
         ? photo.selections?.[0]?.isSelected ?? false
         : false;

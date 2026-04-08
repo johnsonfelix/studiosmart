@@ -1,0 +1,32 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        - |
+          printf "DATABASE_URL=%s\nDATABASE_URL_UNPOOLED=%s\nPOSTGRES_URL=%s\nPOSTGRES_URL_NON_POOLING=%s\nAUTH_SECRET=%s\nAUTH_URL=%s\nS3_REGION=%s\nS3_ACCESS_KEY_ID=%s\nS3_SECRET_ACCESS_KEY=%s\nS3_BUCKET_NAME=%s\nNEXT_PUBLIC_APP_URL=%s\n" \
+            "$DATABASE_URL" \
+            "$DATABASE_URL_UNPOOLED" \
+            "$POSTGRES_URL" \
+            "$POSTGRES_URL_NON_POOLING" \
+            "$AUTH_SECRET" \
+            "$AUTH_URL" \
+            "$S3_REGION" \
+            "$S3_ACCESS_KEY_ID" \
+            "$S3_SECRET_ACCESS_KEY" \
+            "$S3_BUCKET_NAME" \
+            "$NEXT_PUBLIC_APP_URL" > .env.production || true
+        - cat .env.production || true
+        - npx prisma generate
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*

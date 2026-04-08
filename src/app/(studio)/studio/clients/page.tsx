@@ -39,7 +39,7 @@ export default async function ClientsPage() {
             <Card key={client.id} className="h-full">
               <CardHeader>
                 <CardTitle>{client.name}</CardTitle>
-                <div className="text-sm text-muted-foreground">{client.email}</div>
+                <div className="text-sm text-muted-foreground">{client.phone || "No phone"}</div>
               </CardHeader>
               <CardContent>
                 <div className="text-sm font-medium">

@@ -33,5 +33,10 @@ export async function getSelectedPhotos(albumId: string) {
       photo: true,
       client: true,
     },
+    orderBy: {
+      photo: {
+        fileName: "asc",
+      },
+    },
   });
 }

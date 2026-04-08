@@ -28,13 +28,24 @@ export async function GET(req: Request) {
 
     const selections = await getSelectedPhotos(albumId);
 
+    if (format === "txt") {
+      const fileNames = selections.map((s) => s.photo.fileName.replace(/\.[^.]+$/, "")).join("\n");
+
+      return new NextResponse(fileNames, {
+        headers: {
+          "Content-Type": "text/plain",
+          "Content-Disposition": `attachment; filename="selections-${album.title}.txt"`,
+        },
+      });
+    }
+
     if (format === "csv") {
       const data = await Promise.all(
         selections.map(async (s) => ({
           FileName: s.photo.fileName,
           SelectedAt: s.createdAt.toISOString(),
           ClientName: s.client.name,
-          ClientEmail: s.client.email,
+          ClientPhone: s.client.phone || "N/A",
           PhotoURL: await generatePresignedGetUrl(s.photo.originalUrl || s.photo.previewUrl),
         }))
       );

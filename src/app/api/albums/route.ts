@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAlbumsByStudio, createAlbum } from "@/services/album.service";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -26,18 +27,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, clientId } = await req.json();
+    const { title, clientName, clientPhone } = await req.json();
 
-    if (!title || !clientId) {
+    if (!title || !clientName || !clientPhone) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
+    // Find or create client
+    let client = await prisma.client.findFirst({
+      where: {
+        phone: clientPhone,
+        studioId: session.user.studioId!,
+      },
+    });
+
+    if (!client) {
+      client = await prisma.client.create({
+        data: {
+          name: clientName,
+          phone: clientPhone,
+          studioId: session.user.studioId!,
+        },
+      });
+    }
+
     const album = await createAlbum({
       title,
-      clientId,
+      clientId: client.id,
       studioId: session.user.studioId!,
     });
 

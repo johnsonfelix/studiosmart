@@ -48,7 +48,8 @@ model Studio {
 model Client {
   id        String   @id @default(cuid())
   name      String
-  email     String
+  email     String?
+  phone     String?
   studioId  String
   userId    String?
   token     String   @unique @default(cuid())
@@ -59,7 +60,7 @@ model Client {
   albums     Album[]
   selections Selection[]
 
-  @@unique([email, studioId])
+  @@unique([phone, studioId])
   @@map("clients")
 }
 

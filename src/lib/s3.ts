@@ -4,12 +4,15 @@ import { SIGNED_URL_EXPIRY } from "./constants";
 
 export const s3Client = new S3Client({
   region: process.env.S3_REGION || "us-east-1",
-  endpoint: process.env.S3_ENDPOINT,
+  endpoint: process.env.S3_ENDPOINT && process.env.S3_ENDPOINT.trim() !== "" 
+    ? process.env.S3_ENDPOINT 
+    : undefined,
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
   },
-  forcePathStyle: true, // Required for MinIO
+  // Only use path style if endpoint is provided (e.g., MinIO/Localstack)
+  forcePathStyle: !!(process.env.S3_ENDPOINT && process.env.S3_ENDPOINT.trim() !== ""),
 });
 
 const DEFAULT_BUCKET = process.env.S3_BUCKET_NAME || "studiosmart";
@@ -26,6 +29,22 @@ export async function generatePresignedUploadUrl(
   });
 
   return getSignedUrl(s3Client, command, { expiresIn: SIGNED_URL_EXPIRY });
+}
+
+export async function uploadToS3(
+  key: string,
+  body: Buffer,
+  contentType: string,
+  bucket: string = DEFAULT_BUCKET
+) {
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  });
+
+  return s3Client.send(command);
 }
 
 export async function generatePresignedGetUrl(
