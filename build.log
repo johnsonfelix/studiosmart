@@ -1,0 +1,111 @@
+﻿
+> studiosmart@0.1.0 build
+> next build
+
+Ôû▓ Next.js 16.2.2 (Turbopack)
+- Environments: .env
+
+node.exe : ÔÜá The 
+"middleware" file 
+convention is 
+deprecated. Please use 
+"proxy" instead. Learn 
+more: https://nextjs.org/
+docs/messages/middleware-
+to-proxy
+At C:\Program 
+Files\nodejs\npm.ps1:29 
+char:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo       
+       : NotSpecified:   
+  (ÔÜá The "middle...l   
+ eware-to-proxy:Strin    
+g) [], RemoteExcepti    
+on
+    + FullyQualifiedErro 
+   rId : NativeCommandE  
+  rror
+ 
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 1533ms
+  Running TypeScript ...
+Failed to type check.
+
+.next/types/validator.ts:
+135:31
+Type error: Type 'typeof 
+import("D:/Projects/studi
+osmart/src/app/api/albums
+/[id]/photos/route")' 
+does not satisfy the 
+constraint 'RouteHandlerC
+onfig<"/api/albums/[id]/p
+hotos">'.
+  Types of property 
+'GET' are incompatible.
+    Type '(req: Request, 
+{ params }: { params: { 
+id: string; }; }) => Prom
+ise<NextResponse<Paginate
+dResponse<PhotoWithSelect
+ion>> | 
+NextResponse<...>>' is 
+not assignable to type 
+'(request: NextRequest, 
+context: { params: 
+Promise<{ id: string; 
+}>; }) => void | 
+Response | Promise<void 
+| Response>'.
+      Types of 
+parameters '__1' and 
+'context' are 
+incompatible.
+        Type '{ params: 
+Promise<{ id: string; 
+}>; }' is not assignable 
+to type '{ params: { id: 
+string; }; }'.
+          Types of 
+property 'params' are 
+incompatible.
+            Property 
+'id' is missing in type 
+'Promise<{ id: string; 
+}>' but required in type 
+'{ id: string; }'.
+
+  [90m133 |[0m   
+[36mtype[0m __IsExpecte
+d<[33mSpecific[0m 
+[36mextends[0m [33mRou
+teHandlerConfig[0m<[32m
+"/api/albums/[id]/photos"
+[0m>> = [33mSpe...[0m
+  [90m134 |[0m   
+[36mconst[0m handler = 
+{} [36mas[0m 
+[36mtypeof[0m [36mimpo
+rt[0m([32m"../../src/ap
+p/api/albums/[id]/photos/
+route.js"[0m)
+[31m[1m>[0m [90m135 
+|[0m   [36mtype[0m 
+__Check = __IsExpected<[
+36mtypeof[0m handler>
+  [90m    |[0m         
+                      
+[31m[1m^[0m
+  [90m136 |[0m   
+[90m// @ts-ignore[0m
+  [90m137 |[0m   
+[36mtype[0m __Unused = 
+__Check
+  [90m138 |[0m }
+Next.js build worker 
+exited with code: 1 and 
+signal: null

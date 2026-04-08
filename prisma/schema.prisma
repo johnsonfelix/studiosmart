@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STUDIO
+  CLIENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CLIENT)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio     Studio?
+  selections Selection[]
+  clients    Client[]    @relation("ClientUser")
+
+  @@map("users")
+}
+
+model Studio {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clients Client[]
+  albums  Album[]
+
+  @@map("studios")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  studioId  String
+  userId    String?
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+
+  studio     Studio      @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  user       User?       @relation("ClientUser", fields: [userId], references: [id])
+  albums     Album[]
+  selections Selection[]
+
+  @@unique([email, studioId])
+  @@map("clients")
+}
+
+model Album {
+  id          String    @id @default(cuid())
+  title       String
+  studioId    String
+  clientId    String
+  isActive    Boolean   @default(true)
+  accessToken String    @unique @default(cuid())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  photos Photo[]
+
+  @@map("albums")
+}
+
+model Photo {
+  id           String   @id @default(cuid())
+  albumId      String
+  fileName     String
+  previewUrl   String
+  thumbnailUrl String
+  originalUrl  String?
+  width        Int      @default(0)
+  height       Int      @default(0)
+  fileSize     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  album      Album       @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  selections Selection[]
+
+  @@index([albumId])
+  @@map("photos")
+}
+
+model Selection {
+  id         String   @id @default(cuid())
+  photoId    String
+  clientId   String
+  userId     String?
+  isSelected Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  photo  Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@unique([photoId, clientId])
+  @@map("selections")
+}
