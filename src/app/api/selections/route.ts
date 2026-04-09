@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       success: true,
-      selectionId: selection.id 
+      selectionId: "id" in selection ? selection.id : undefined
     });
   } catch (error: any) {
     console.error("Selection API Error:", error);
