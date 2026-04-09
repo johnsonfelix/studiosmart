@@ -2,12 +2,16 @@ import { prisma } from "@/lib/prisma";
 import { generateAccessToken } from "@/lib/utils";
 import { AlbumWithCounts } from "@/types";
 
-export async function createAlbum(data: {
-  title: string;
-  studioId: string;
-  clientId: string;
-}) {
-  return prisma.album.create({
+export async function createAlbum(
+  data: {
+    title: string;
+    studioId: string;
+    clientId: string;
+  },
+  tx?: any
+) {
+  const prismaClient = tx || prisma;
+  return prismaClient.album.create({
     data: {
       ...data,
       accessToken: generateAccessToken(),
@@ -54,16 +58,36 @@ export async function getAlbumById(id: string, studioId?: string) {
 }
 
 export async function getAlbumByToken(accessToken: string) {
-  return prisma.album.findUnique({
+  const album = await prisma.album.findUnique({
     where: { accessToken, isActive: true },
     include: {
       studio: { select: { id: true, name: true } },
       client: { select: { id: true, name: true, phone: true } },
       photos: {
         orderBy: { fileName: "asc" },
+        include: {
+          selections: true,
+        },
       },
     },
   });
+
+  if (!album) return null;
+
+  // Transform photos to include selection status for this specific client
+  const photosWithSelection = album.photos.map((photo) => {
+    const selection = photo.selections.find((s) => s.clientId === album.clientId);
+    return {
+      ...photo,
+      selectionStatus: selection
+        ? selection.isSelected
+          ? ("selected" as const)
+          : ("rejected" as const)
+        : ("unreviewed" as const),
+    };
+  });
+
+  return { ...album, photos: photosWithSelection };
 }
 
 export async function deleteAlbum(id: string) {

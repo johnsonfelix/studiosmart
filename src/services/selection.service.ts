@@ -3,8 +3,17 @@ import { prisma } from "@/lib/prisma";
 export async function toggleSelection(
   photoId: string,
   clientId: string,
-  isSelected: boolean
+  isSelected: boolean | null
 ) {
+  if (isSelected === null) {
+    return prisma.selection.deleteMany({
+      where: {
+        photoId,
+        clientId,
+      },
+    });
+  }
+
   return prisma.selection.upsert({
     where: {
       photoId_clientId: {

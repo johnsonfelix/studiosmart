@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Heart, CheckCircle2, Download, Copy, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function PhotoCard({ photo, role = "STUDIO", onToggleSelection }: any) {
+export function PhotoCard({ photo, role = "STUDIO", onToggleSelection, onOpen }: any) {
   const [isSelected, setIsSelected] = useState(photo.isSelected || false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,7 +24,10 @@ export function PhotoCard({ photo, role = "STUDIO", onToggleSelection }: any) {
   };
 
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-md cursor-pointer bg-muted">
+    <div 
+      className="group relative aspect-square overflow-hidden rounded-md cursor-pointer bg-muted"
+      onClick={() => onOpen?.()}
+    >
       <img
         src={photo.thumbnailUrl}
         alt={photo.fileName}
@@ -33,24 +36,26 @@ export function PhotoCard({ photo, role = "STUDIO", onToggleSelection }: any) {
         }`}
       />
       
-      {/* Overlay */}
-      <div 
-        className={`absolute inset-0 transition-opacity flex items-start justify-end p-3 ${
-          isSelected ? "opacity-100 bg-black/20" : "opacity-0 group-hover:opacity-100 bg-gradient-to-b from-black/40 via-transparent to-transparent"
-        }`}
-      >
-        <button
-          onClick={(e) => { e.stopPropagation(); handleToggle(); }}
-          disabled={isLoading}
-          className={`p-2 rounded-full backdrop-blur-md transition-colors ${
-            isSelected 
-              ? "bg-white/90 text-red-500 hover:bg-white" 
-              : "bg-black/20 text-white hover:bg-black/40 border border-white/20"
+      {/* Overlay: Hide heart toggle for Studio users */}
+      {role !== "STUDIO" && (
+        <div 
+          className={`absolute inset-0 transition-opacity flex items-start justify-end p-3 ${
+            isSelected ? "opacity-100 bg-black/20" : "opacity-0 group-hover:opacity-100 bg-gradient-to-b from-black/40 via-transparent to-transparent"
           }`}
         >
-          <Heart className={`w-5 h-5 ${isSelected ? "fill-current" : ""}`} />
-        </button>
-      </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleToggle(); }}
+            disabled={isLoading}
+            className={`p-2 rounded-full backdrop-blur-md transition-colors ${
+              isSelected 
+                ? "bg-white/90 text-red-500 hover:bg-white" 
+                : "bg-black/20 text-white hover:bg-black/40 border border-white/20"
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isSelected ? "fill-current" : ""}`} />
+          </button>
+        </div>
+      )}
 
       {isSelected && (
         <div className="absolute bottom-3 right-3 text-white drop-shadow-md">

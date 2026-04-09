@@ -87,8 +87,16 @@ export default function NewAlbumPage() {
               />
             </div>
 
-            <div className="bg-emerald-500/10 p-4 rounded-md text-emerald-500 text-sm">
-              Note: This will create a new client record and a secure gallery link for them.
+            <div className="bg-amber-500/10 p-4 rounded-md border border-amber-500/20 text-amber-600 text-sm flex items-start gap-3">
+              <div className="mt-0.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 21a9 9 0 110-18 9 9 0 010 18z" />
+                </svg>
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold uppercase tracking-wider text-[11px]">Payment Notice</p>
+                <p>Creating this album will deduct <span className="font-bold">₹299</span> from your studio wallet balance.</p>
+              </div>
             </div>
 
             <Button type="submit" disabled={isLoading}>

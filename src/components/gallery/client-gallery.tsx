@@ -26,7 +26,7 @@ interface Photo {
   previewUrl: string;
   thumbnailUrl: string;
   originalUrl: string;
-  isSelected?: boolean;
+  selectionStatus?: PhotoStatus;
 }
 
 type PhotoStatus = "unreviewed" | "selected" | "rejected";
@@ -61,7 +61,7 @@ export function ClientGallery({
   const [statuses, setStatuses] = useState<Record<string, PhotoStatus>>(() => {
     const initial: Record<string, PhotoStatus> = {};
     initialPhotos.forEach((p) => {
-      initial[p.id] = p.isSelected ? "selected" : "unreviewed";
+      initial[p.id] = p.selectionStatus || "unreviewed";
     });
     return initial;
   });
@@ -151,28 +151,19 @@ export function ClientGallery({
     return () => { document.body.style.overflow = ""; };
   }, [isLightboxOpen]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isLightboxOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") navigatePrev();
-      if (e.key === "ArrowRight") navigateNext();
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "s" || e.key === "S") handleSelect();
-      if (e.key === "x" || e.key === "X") handleReject();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isLightboxOpen, lightboxIndex, filteredPhotos]);
 
   // API call to persist selection
   const syncSelection = useCallback(
-    async (photoId: string, isSelected: boolean) => {
+    async (photoId: string, selectionState: boolean | null) => {
       try {
         const res = await fetch("/api/selections", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ photoId, isSelected, ...(token && { token }) }),
+          body: JSON.stringify({
+            photoId,
+            isSelected: selectionState,
+            ...(token && { token }),
+          }),
         });
         if (!res.ok) throw new Error("Failed");
       } catch {
@@ -195,6 +186,7 @@ export function ClientGallery({
       // Sync to server
       if (newStatus === "selected") syncSelection(photoId, true);
       else if (newStatus === "rejected") syncSelection(photoId, false);
+      else if (newStatus === "unreviewed") syncSelection(photoId, null);
     },
     [syncSelection]
   );
@@ -244,7 +236,8 @@ export function ClientGallery({
     setStatuses((prev) => ({ ...prev, [last.id]: last.prevStatus }));
     // Sync undo to server
     if (last.prevStatus === "selected") syncSelection(last.id, true);
-    else syncSelection(last.id, false);
+    else if (last.prevStatus === "rejected") syncSelection(last.id, false);
+    else syncSelection(last.id, null);
     toast("Action undone", { icon: "↩️" });
   }, [undoStack, syncSelection]);
 
@@ -331,6 +324,39 @@ export function ClientGallery({
     }
   };
 
+
+  // Protection: Disable right-click, dragging, and common shortcuts
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    const handleDragStart = (e: DragEvent) => e.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+C
+      if (e.ctrlKey && (e.key === "s" || e.key === "p" || e.key === "u" || e.key === "c")) {
+        e.preventDefault();
+        return;
+      }
+      
+      // Lightbox navigation
+      if (!isLightboxOpen) return;
+      if (e.key === "ArrowLeft") navigatePrev();
+      if (e.key === "ArrowRight") navigateNext();
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "s" || e.key === "S") handleSelect();
+      if (e.key === "x" || e.key === "X") handleReject();
+    };
+
+    window.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("dragstart", handleDragStart);
+    window.addEventListener("keydown", handleKeyDown);
+    
+    return () => {
+      window.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("dragstart", handleDragStart);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isLightboxOpen, lightboxIndex, filteredPhotos, navigateNext, navigatePrev, handleSelect, handleReject]);
+
   // Touch handlers for swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -341,25 +367,30 @@ export function ClientGallery({
   const handleTouchMove = (e: React.TouchEvent) => {
     const deltaX = e.touches[0].clientX - touchStartX.current;
     const deltaY = e.touches[0].clientY - touchStartY.current;
+    
+    // Only trigger horizontal swipe if movement is primarily horizontal
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
       isSwiping.current = true;
-      setSwipeOffset(deltaX * 0.5);
+      setSwipeOffset(deltaX); // 1:1 movement feels much more responsive
+      
       // Dynamic opacity & scale based on drag distance
-      const progress = Math.min(Math.abs(deltaX) / (window.innerWidth * 0.4), 1);
-      setPhotoOpacity(1 - progress * 0.6);
-      setPhotoScale(1 - progress * 0.08);
+      const progress = Math.min(Math.abs(deltaX) / (window.innerWidth * 0.5), 1);
+      setPhotoOpacity(1 - progress * 0.4);
+      setPhotoScale(1 - progress * 0.05);
     }
   };
 
   const handleTouchEnd = () => {
     if (!isSwiping.current) return;
-    const threshold = window.innerWidth * 0.2;
+    
+    const threshold = window.innerWidth * 0.15; // Lower threshold (15%) for easier swiping
+    
     if (swipeOffset < -threshold) {
       navigateNext();
     } else if (swipeOffset > threshold) {
       navigatePrev();
     } else {
-      // Snap back
+      // Snap back with transition
       setSwipeOffset(0);
       setPhotoOpacity(1);
       setPhotoScale(1);
@@ -389,7 +420,7 @@ export function ClientGallery({
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div id="gallery-container" className="min-h-screen bg-[#0a0a0a] text-white no-select protected-content">
       {/* Premium Header */}
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl">
         <div className="px-4 py-3 sm:px-6 max-w-7xl mx-auto">
@@ -670,7 +701,7 @@ export function ClientGallery({
 
       {/* ===== LIGHTBOX ===== */}
       {isLightboxOpen && currentPhoto && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col touch-none">
           {/* Lightbox Header */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex items-center gap-2">
@@ -740,9 +771,13 @@ export function ClientGallery({
               <img
                 src={currentPhoto.previewUrl || currentPhoto.thumbnailUrl}
                 alt={currentPhoto.fileName}
-                className="max-w-full max-h-[calc(100vh-200px)] object-contain rounded-xl select-none shadow-2xl shadow-black/50"
+                className="max-w-full max-h-[calc(100vh-200px)] object-contain rounded-xl select-none shadow-2xl shadow-black/50 pointer-events-none"
                 draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
               />
+              {/* Invisible protective overlay for mobile long-press */}
+              <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
             </div>
           </div>
 

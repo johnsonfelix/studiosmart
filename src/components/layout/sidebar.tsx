@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard } from "lucide-react";
+import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/app/actions";
 
@@ -30,10 +30,12 @@ export function Sidebar({ role }: { role: "ADMIN" | "STUDIO" }) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/studio", active: true },
     { icon: Folders, label: "Albums", href: "/studio/albums" },
     { icon: Users, label: "Clients", href: "/studio/clients" },
+    { icon: Wallet, label: "Wallet", href: "/studio/wallet" },
   ] : [
     { icon: LayoutDashboard, label: "Overview", href: "/admin", active: true },
     { icon: Camera, label: "Studios", href: "/admin/studios" },
     { icon: Users, label: "Users", href: "/admin/users" },
+    { icon: Wallet, label: "Wallet Requests", href: "/admin/wallet" },
   ];
 
   return (

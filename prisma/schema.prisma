@@ -13,6 +13,12 @@ enum Role {
   CLIENT
 }
 
+enum WalletStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -41,8 +47,25 @@ model Studio {
   owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   clients Client[]
   albums  Album[]
+  balance Float    @default(0)
+
+  walletTransactions WalletTransaction[]
 
   @@map("studios")
+}
+
+model WalletTransaction {
+  id              String       @id @default(cuid())
+  studioId        String
+  amount          Float
+  referenceNumber String
+  status          WalletStatus @default(PENDING)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_transactions")
 }
 
 model Client {

@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const { photoId, isSelected, token } = await req.json();
 
-    if (!photoId || isSelected === undefined) {
+    if (!photoId || (isSelected !== null && isSelected === undefined)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
