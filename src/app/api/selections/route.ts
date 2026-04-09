@@ -15,28 +15,42 @@ export async function POST(req: Request) {
     }
 
     // Determine client context
-    let clientId: string;
+    let clientId: string | undefined;
 
-    const session = await auth();
-    if (session?.user.role === "CLIENT") {
-      clientId = session.user.id;
-    } else if (token) {
-      // Validate token access
-      const album = await getAlbumByToken(token);
-      if (!album) {
-        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    // 1. Try Session Auth
+    try {
+      const session = await auth();
+      if (session?.user.role === "CLIENT") {
+        clientId = session.user.id;
       }
-      clientId = album.clientId;
-    } else {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    } catch (e) {
+      console.error("Session auth failed, falling back to token:", e);
+    }
+
+    // 2. Try Token Auth (fallback or primary)
+    if (!clientId && token) {
+      const album = await getAlbumByToken(token);
+      if (album) {
+        clientId = album.clientId;
+      } else {
+        return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
+      }
+    }
+
+    if (!clientId) {
+      return NextResponse.json({ error: "Please log in or use a valid gallery link" }, { status: 401 });
     }
 
     const selection = await toggleSelection(photoId, clientId, isSelected);
 
-    return NextResponse.json({ selection });
-  } catch (error) {
+    return NextResponse.json({ 
+      success: true,
+      selectionId: selection.id 
+    });
+  } catch (error: any) {
+    console.error("Selection API Error:", error);
     return NextResponse.json(
-      { error: "Failed to save selection" },
+      { error: error.message || "Failed to save selection" },
       { status: 500 }
     );
   }

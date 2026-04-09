@@ -177,10 +177,13 @@ export function ClientGallery({
             ...(token && { token }),
           }),
         });
-        if (!res.ok) throw new Error("Failed");
-      } catch {
-        // Silently fail — local state is the source of truth for the session
-        console.error("Failed to sync selection for", photoId);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `Server returned ${res.status}`);
+        }
+      } catch (error: any) {
+        console.error("Failed to sync selection:", error);
+        toast.error(`Sync failed: ${error.message}. Changes saved locally only.`);
       }
     },
     [token]
