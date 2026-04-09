@@ -78,6 +78,13 @@ export function ClientGallery({
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+  const touchStartX2 = useRef(0);
+  const touchStartY2 = useRef(0);
+  const lastTouchX = useRef(0);
+  const lastTouchY = useRef(0);
+  const pinchStartDist = useRef(0);
+  const pinchStartScale = useRef(1);
+  const isPinching = useRef(false);
   const isSwiping = useRef(false);
 
   // Load session from localStorage AFTER hydration (client-only)
@@ -92,14 +99,19 @@ export function ClientGallery({
         setSessionLoaded(true);
         return;
       }
-      // Restore statuses from session
+      // Restore statuses from session but prioritize server-side selections
       setStatuses((prev) => {
         const merged = { ...prev };
-        for (const id of Object.keys(merged)) {
-          if (session.statuses[id]) {
-            merged[id] = session.statuses[id];
+        initialPhotos.forEach((p) => {
+          // 1. If server HAS a status (selected/rejected), always prefer server
+          if (p.selectionStatus && p.selectionStatus !== "unreviewed") {
+            merged[p.id] = p.selectionStatus;
           }
-        }
+          // 2. Otherwise, check if local storage has a valid status
+          else if (session.statuses[p.id]) {
+            merged[p.id] = session.statuses[p.id];
+          }
+        });
         return merged;
       });
       if (session.lastViewedIndex > 0) {
@@ -267,18 +279,26 @@ export function ClientGallery({
     }
   }, [statuses, updateStatus]);
 
+  const [photoOpacity, setPhotoOpacity] = useState(1);
+  const [photoScale, setPhotoScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+
+  const resetPanAndZoom = useCallback(() => {
+    setPhotoScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    setSwipeOffset(0);
+    setPhotoOpacity(1);
+  }, []);
+
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
-    setSwipeOffset(0);
+    resetPanAndZoom();
   };
 
   const closeLightbox = () => {
     setLightboxIndex(null);
-    setSwipeOffset(0);
+    resetPanAndZoom();
   };
-
-  const [photoOpacity, setPhotoOpacity] = useState(1);
-  const [photoScale, setPhotoScale] = useState(1);
 
   const navigateNext = () => {
     if (lightboxIndex === null || isTransitioning) return;
@@ -286,11 +306,10 @@ export function ClientGallery({
       setIsTransitioning(true);
       // Fade out + shrink
       setPhotoOpacity(0);
-      setPhotoScale(0.92);
-      setTimeout(() => {
+       setTimeout(() => {
         setLightboxIndex(lightboxIndex + 1);
         // Reset position, then fade in
-        setSwipeOffset(0);
+        resetPanAndZoom();
         setPhotoScale(1.04);
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -311,7 +330,7 @@ export function ClientGallery({
       setPhotoScale(0.92);
       setTimeout(() => {
         setLightboxIndex(lightboxIndex - 1);
-        setSwipeOffset(0);
+        resetPanAndZoom();
         setPhotoScale(1.04);
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -324,9 +343,7 @@ export function ClientGallery({
     }
   };
 
-
   // Protection: Disable right-click, dragging, and common shortcuts
-
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     const handleDragStart = (e: DragEvent) => e.preventDefault();
@@ -357,43 +374,90 @@ export function ClientGallery({
     };
   }, [isLightboxOpen, lightboxIndex, filteredPhotos, navigateNext, navigatePrev, handleSelect, handleReject]);
 
-  // Touch handlers for swipe
+  // Touch handlers for swipe, pinch-to-zoom and pan
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isSwiping.current = false;
+    if (e.touches.length === 2) {
+      isPinching.current = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDist.current = Math.sqrt(dx * dx + dy * dy);
+      pinchStartScale.current = photoScale;
+    } else {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+      lastTouchX.current = e.touches[0].clientX;
+      lastTouchY.current = e.touches[0].clientY;
+      isPinching.current = false;
+      isSwiping.current = false;
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    const deltaX = e.touches[0].clientX - touchStartX.current;
-    const deltaY = e.touches[0].clientY - touchStartY.current;
-    
-    // Only trigger horizontal swipe if movement is primarily horizontal
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-      isSwiping.current = true;
-      setSwipeOffset(deltaX); // 1:1 movement feels much more responsive
+    if (e.touches.length === 2 && isPinching.current) {
+      // Handle Pinch to Zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDist = Math.sqrt(dx * dx + dy * dy);
       
-      // Dynamic opacity & scale based on drag distance
-      const progress = Math.min(Math.abs(deltaX) / (window.innerWidth * 0.5), 1);
-      setPhotoOpacity(1 - progress * 0.4);
-      setPhotoScale(1 - progress * 0.05);
+      const scaleChange = currentDist / pinchStartDist.current;
+      const newScale = Math.max(1, Math.min(pinchStartScale.current * scaleChange, 4));
+      setPhotoScale(newScale);
+      
+      // Prevent swiping while pinching
+      isSwiping.current = false;
+    } else if (e.touches.length === 1 && !isPinching.current) {
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const dx = currentX - touchStartX.current;
+      const dy = currentY - touchStartY.current;
+
+      if (photoScale > 1.05) {
+        // Handle Panning when zoomed in
+        const deltaX = currentX - lastTouchX.current;
+        const deltaY = currentY - lastTouchY.current;
+        
+        setPanOffset(prev => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY
+        }));
+        
+        lastTouchX.current = currentX;
+        lastTouchY.current = currentY;
+      } else {
+        // Handle normal swipe for navigation
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+          isSwiping.current = true;
+          setSwipeOffset(dx);
+          
+          const progress = Math.min(Math.abs(dx) / (window.innerWidth * 0.5), 1);
+          setPhotoOpacity(1 - progress * 0.4);
+          setPhotoScale(1 - progress * 0.05);
+        }
+      }
     }
   };
 
   const handleTouchEnd = () => {
-    if (!isSwiping.current) return;
+    if (isPinching.current) {
+      if (photoScale < 1.05) resetPanAndZoom();
+      isPinching.current = false;
+      return;
+    }
+
+    if (!isSwiping.current) {
+      // If we were panning, maybe bounce back if out of bounds (simplified for now)
+      if (photoScale < 1.05) resetPanAndZoom();
+      return;
+    }
     
-    const threshold = window.innerWidth * 0.15; // Lower threshold (15%) for easier swiping
+    const threshold = window.innerWidth * 0.15;
     
     if (swipeOffset < -threshold) {
       navigateNext();
     } else if (swipeOffset > threshold) {
       navigatePrev();
     } else {
-      // Snap back with transition
-      setSwipeOffset(0);
-      setPhotoOpacity(1);
-      setPhotoScale(1);
+      resetPanAndZoom();
     }
     isSwiping.current = false;
   };
@@ -701,7 +765,7 @@ export function ClientGallery({
 
       {/* ===== LIGHTBOX ===== */}
       {isLightboxOpen && currentPhoto && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col touch-none">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
           {/* Lightbox Header */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex items-center gap-2">
@@ -732,7 +796,7 @@ export function ClientGallery({
             </div>
           </div>
 
-          {/* Photo Container with Swipe */}
+          {/* Photo Container with Swipe/Zoom */}
           <div
             className="flex-1 flex items-center justify-center relative overflow-hidden"
             onTouchStart={handleTouchStart}
@@ -761,9 +825,9 @@ export function ClientGallery({
             <div
               className="w-full h-full flex items-center justify-center px-4"
               style={{
-                transform: `translateX(${swipeOffset}px) scale(${photoScale})`,
+                transform: `translate(${swipeOffset + panOffset.x}px, ${panOffset.y}px) scale(${photoScale})`,
                 opacity: photoOpacity,
-                transition: isSwiping.current
+                transition: (isSwiping.current || isPinching.current || photoScale > 1)
                   ? "none"
                   : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease",
               }}
@@ -776,8 +840,11 @@ export function ClientGallery({
                 onContextMenu={(e) => e.preventDefault()}
                 onDragStart={(e) => e.preventDefault()}
               />
-              {/* Invisible protective overlay for mobile long-press */}
-              <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
+              {/* Invisible protective overlay for mobile long-press - Pass touches to parent */}
+              <div 
+                className="absolute inset-0 z-10 pointer-events-none sm:pointer-events-auto" 
+                onContextMenu={(e) => e.preventDefault()} 
+              />
             </div>
           </div>
 
