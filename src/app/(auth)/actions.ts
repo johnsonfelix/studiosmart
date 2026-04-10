@@ -31,29 +31,25 @@ export async function registerUser(formData: FormData) {
   try {
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
     const password = formData.get("password") as string;
-    const role = formData.get("role") as string;
     const studioName = formData.get("studioName") as string;
 
-    if (!name || !email || !password || (role === "STUDIO" && !studioName)) {
+    if (!name || !email || !phone || !password || !studioName) {
       return { error: "Missing required fields." };
     }
 
-    if (role === "STUDIO") {
-      await createStudioOwner({
-        name,
-        email,
-        passwordRaw: password,
-        studioName,
-      });
-    } else {
-      // Create regular client user (handled differently based on studio invite later)
-      return { error: "Client registration via generic form is currently disabled. Wait for studio invite." };
-    }
+    await createStudioOwner({
+      name,
+      email,
+      phone,
+      passwordRaw: password,
+      studioName,
+    });
 
     return { success: true };
   } catch (error: any) {
-    if (error.message === "Email already registered") {
+    if (error.message === "Email already registered" || error.message === "Phone number already registered") {
       return { error: error.message };
     }
     return { error: "Something went wrong during registration." };

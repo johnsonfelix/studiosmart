@@ -2,24 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { registerUser } from "@/app/(auth)/actions";
 import { toast } from "react-hot-toast";
 
 export function RegisterForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [role, setRole] = useState<"STUDIO" | "CLIENT">("STUDIO");
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    formData.append("role", role);
     
     try {
       const result = await registerUser(formData);
@@ -30,69 +28,118 @@ export function RegisterForm() {
         return;
       }
 
-      toast.success("Registration successful! Please log in.");
-      router.push("/login");
+      toast.success("Account created! Welcome to StudioSmart.");
+      router.push("/studio"); // Redirect to studio board
     } catch (error) {
-      toast.error("Something went wrong");
+      toast.error("Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <Card className="w-[400px]">
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>Enter your details below to get started.</CardDescription>
-      </CardHeader>
-      <form onSubmit={onSubmit}>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4 mb-4">
-            <Button
-              type="button"
-              variant={role === "STUDIO" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setRole("STUDIO")}
-            >
-              Studio Owner
-            </Button>
-            <Button
-              type="button"
-              variant={role === "CLIENT" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setRole("CLIENT")}
-            >
-              Client
-            </Button>
+    <div className="glass rounded-[2rem] p-8 w-full">
+      <form onSubmit={onSubmit} className="space-y-5">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="studioName" className="text-white/60 text-[10px] font-bold uppercase tracking-[0.15em] ml-1">
+              Studio Name
+            </Label>
+            <Input 
+              id="studioName" 
+              name="studioName" 
+              placeholder="e.g. Moonlight Studios"
+              required 
+              disabled={isLoading}
+              className="h-11 bg-white/[0.03] border-white/10 rounded-xl focus:ring-brand/30 focus:border-brand/50 transition-all placeholder:text-white/20"
+            />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input id="name" name="name" required disabled={isLoading} />
+
+          <div className="space-y-1.5">
+            <Label htmlFor="name" className="text-white/60 text-[10px] font-bold uppercase tracking-[0.15em] ml-1">
+              Owner Name
+            </Label>
+            <Input 
+              id="name" 
+              name="name" 
+              placeholder="Your full name"
+              required 
+              disabled={isLoading}
+              className="h-11 bg-white/[0.03] border-white/10 rounded-xl focus:ring-brand/30 focus:border-brand/50 transition-all placeholder:text-white/20"
+            />
           </div>
-          {role === "STUDIO" && (
-            <div className="space-y-2">
-              <Label htmlFor="studioName">Studio Name</Label>
-              <Input id="studioName" name="studioName" required={role === "STUDIO"} disabled={isLoading} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-white/60 text-[10px] font-bold uppercase tracking-[0.15em] ml-1">
+                Email Address
+              </Label>
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                placeholder="studio@example.com" 
+                required 
+                disabled={isLoading}
+                className="h-11 bg-white/[0.03] border-white/10 rounded-xl focus:ring-brand/30 focus:border-brand/50 transition-all placeholder:text-white/20"
+              />
             </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" placeholder="m@example.com" required disabled={isLoading} />
+            <div className="space-y-1.5">
+              <Label htmlFor="phone" className="text-white/60 text-[10px] font-bold uppercase tracking-[0.15em] ml-1">
+                Mobile Number
+              </Label>
+              <Input 
+                id="phone" 
+                name="phone" 
+                type="tel" 
+                placeholder="+91 XXXXX XXXXX" 
+                required 
+                disabled={isLoading}
+                className="h-11 bg-white/[0.03] border-white/10 rounded-xl focus:ring-brand/30 focus:border-brand/50 transition-all placeholder:text-white/20"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required disabled={isLoading} />
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-white/60 text-[10px] font-bold uppercase tracking-[0.15em] ml-1">
+              Password
+            </Label>
+            <Input 
+              id="password" 
+              name="password" 
+              type="password" 
+              required 
+              disabled={isLoading}
+              className="h-11 bg-white/[0.03] border-white/10 rounded-xl focus:ring-brand/30 focus:border-brand/50 transition-all"
+            />
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button className="w-full" type="submit" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Sign Up"}
+        </div>
+
+        <div className="pt-4">
+          <Button 
+            className="w-full h-14 brand-gradient border-0 text-white rounded-2xl text-lg font-bold shadow-xl shadow-brand/10 hover:opacity-90 active:scale-95 transition-all" 
+            type="submit" 
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Setting up your studio...
+              </div>
+            ) : "Create Studio Account"}
           </Button>
-          <Button variant="link" className="w-full" type="button" onClick={() => router.push("/login")}>
-            Already have an account? Log In
-          </Button>
-        </CardFooter>
+          
+          <div className="mt-6 text-center">
+            <Link 
+              href="/login" 
+              className="text-sm text-white/40 hover:text-brand transition-colors flex flex-col sm:flex-row items-center justify-center gap-2 group"
+            >
+              Already have a studio? 
+              <span className="text-white font-medium group-hover:text-brand">Login to Dashboard</span>
+            </Link>
+          </div>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 }

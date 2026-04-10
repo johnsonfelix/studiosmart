@@ -5,15 +5,22 @@ import { Role } from "@prisma/client";
 export async function createStudioOwner(data: {
   name: string;
   email: string;
+  phone: string;
   passwordRaw: string;
   studioName: string;
 }) {
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
+  const existingUser = await prisma.user.findFirst({
+    where: { 
+      OR: [
+        { email: data.email },
+        { phone: data.phone }
+      ]
+    },
   });
 
   if (existingUser) {
-    throw new Error("Email already registered");
+    if (existingUser.email === data.email) throw new Error("Email already registered");
+    if (existingUser.phone === data.phone) throw new Error("Phone number already registered");
   }
 
   const hashedPassword = await bcrypt.hash(data.passwordRaw, 10);
@@ -23,6 +30,7 @@ export async function createStudioOwner(data: {
       data: {
         name: data.name,
         email: data.email,
+        phone: data.phone,
         password: hashedPassword,
         role: Role.STUDIO,
       },

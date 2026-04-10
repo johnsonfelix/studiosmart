@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StudioSmart | Photo Proofing Platform",
-  description: "Modern photo selection and proofing for professional photographers",
+  title: "StudioSmart | Lightning Fast Photo Proofing",
+  description: "Experience the fastest and most secure way to select photos. Built for professional photographers who value speed, beauty, and client security.",
 };
 
 export default function RootLayout({

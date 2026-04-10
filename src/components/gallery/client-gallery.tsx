@@ -219,30 +219,64 @@ export function ClientGallery({
       toast.success("Photo selected ✨");
     }
     
-    setIsActioning(false);
-    // Auto-advance after a short delay if not already selected
-    if (!isAlreadySelected) {
-      setTimeout(() => navigateNext(), 300);
-    }
-  }, [currentPhoto, statuses, updateStatus, isActioning]);
+    // Auto-advance logic
+    setTimeout(() => {
+      const isReviewTab = activeTab === "unreviewed";
+      
+      if (isReviewTab) {
+        // In review tab, the photo disappears. 
+        // If we were at the last photo, close the lightbox.
+        // Otherwise, stay at same index (the next photo slides in).
+        if (lightboxIndex !== null && lightboxIndex >= filteredPhotos.length - 1) {
+          closeLightbox();
+        } else {
+          // Re-trigger the enter animation for the "new" photo that took this index
+          setPhotoScale(1.04);
+          setPhotoOpacity(0.8);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setPhotoScale(1);
+              setPhotoOpacity(1);
+            });
+          });
+        }
+      } else {
+        // In other tabs, the photo stays. Navigate forward.
+        navigateNext();
+      }
+      setIsActioning(false);
+    }, 300);
+  }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleReject = useCallback(() => {
     if (!currentPhoto || isActioning) return;
     setIsActioning(true);
     updateStatus(currentPhoto.id, "rejected");
     toast("Photo skipped", { icon: "⏭️" });
-    setIsActioning(false);
-    // Auto-advance
+
+    // Auto-advance logic
     setTimeout(() => {
-      // If this was the last photo in the filtered list, close lightbox
-      if (lightboxIndex !== null && lightboxIndex >= filteredPhotos.length - 1) {
-        closeLightbox();
+      const isReviewTab = activeTab === "unreviewed";
+
+      if (isReviewTab) {
+        if (lightboxIndex !== null && lightboxIndex >= filteredPhotos.length - 1) {
+          closeLightbox();
+        } else {
+          setPhotoScale(1.04);
+          setPhotoOpacity(0.8);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setPhotoScale(1);
+              setPhotoOpacity(1);
+            });
+          });
+        }
       } else {
-        // Stay at same index (next photo slides in since current was rejected from filtered list)
-        // Only re-render needed
+        navigateNext();
       }
+      setIsActioning(false);
     }, 200);
-  }, [currentPhoto, statuses, updateStatus, isActioning, lightboxIndex, filteredPhotos]);
+  }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;

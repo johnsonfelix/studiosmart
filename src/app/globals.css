@@ -28,6 +28,9 @@
   --color-border: hsl(214.3 31.8% 91.4%);
   --color-input: hsl(214.3 31.8% 91.4%);
   --color-ring: hsl(222.2 84% 4.9%);
+  
+  --color-brand: hsl(158 100% 41%);
+  --color-brand-foreground: hsl(0 0% 100%);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -106,6 +109,27 @@
     user-select: none;
     -webkit-touch-callout: none;
   }
+
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] shadow-2xl;
+  }
+
+  .brand-gradient {
+    @apply bg-gradient-to-br from-brand to-emerald-600;
+  }
+
+  .brand-text-gradient {
+    @apply bg-gradient-to-br from-white via-white to-brand text-transparent bg-clip-text;
+  }
+
+  .animate-reveal {
+    animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Print Protection */
