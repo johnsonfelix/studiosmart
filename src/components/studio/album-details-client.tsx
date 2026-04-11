@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhotoGrid } from "@/components/gallery/photo-grid";
 import { BulkUploader } from "@/components/upload/bulk-uploader";
@@ -29,6 +30,28 @@ export function AlbumDetailsClient({
   const router = useRouter();
   const [photos, setPhotos] = useState(initialPhotos);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [activeTab, setActiveTab] = useState("upload");
+
+  const fetchPhotos = async () => {
+    setLoadingPhotos(true);
+    try {
+      const res = await fetch(`/api/albums/${albumId}/photos?limit=1000`);
+      if (!res.ok) throw new Error("Failed to fetch photos");
+      const data = await res.json();
+      setPhotos(data.items);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingPhotos(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "photos" && (photos.length === 0 || initialPhotos.length === 0)) {
+      fetchPhotos();
+    }
+  }, [activeTab]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(galleryUrl);
@@ -100,16 +123,12 @@ export function AlbumDetailsClient({
         </div>
       </div>
 
-      <Tabs defaultValue="photos" className="w-full">
+      <Tabs defaultValue="upload" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="photos">Photos</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="share">Share Details</TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="photos" className="min-h-[400px]">
-          <PhotoGrid initialPhotos={photos} albumId={albumId} role="STUDIO" />
-        </TabsContent>
         
         <TabsContent value="upload" className="max-w-3xl">
           <BulkUploader albumId={albumId} onUploadComplete={handleUploadComplete} />
@@ -131,6 +150,17 @@ export function AlbumDetailsClient({
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="photos" className="min-h-[400px]">
+          {loadingPhotos ? (
+            <div className="flex flex-col items-center justify-center h-[400px] gap-2 text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <p>Loading photos...</p>
+            </div>
+          ) : (
+            <PhotoGrid initialPhotos={photos} albumId={albumId} role="STUDIO" />
+          )}
         </TabsContent>
       </Tabs>
     </div>

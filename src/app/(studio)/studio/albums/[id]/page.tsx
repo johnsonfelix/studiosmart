@@ -30,16 +30,6 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ id
 
   const galleryUrl = `${process.env.NEXT_PUBLIC_APP_URL}/gallery/${album.accessToken}`;
 
-  // Enrich photos with presigned URLs
-  const enrichedPhotos = await Promise.all(
-    (album.photos || []).map(async (photo: any) => ({
-      ...photo,
-      previewUrl: (await generatePresignedGetUrl(photo.previewUrl)) || "",
-      thumbnailUrl: (await generatePresignedGetUrl(photo.thumbnailUrl)) || "",
-      originalUrl: await generatePresignedGetUrl(photo.originalUrl),
-    }))
-  );
-
   return (
     <AlbumDetailsClient 
       albumId={albumId}
@@ -47,7 +37,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ id
       clientName={album.client?.name}
       photoCount={album._count?.photos || 0}
       galleryUrl={galleryUrl}
-      initialPhotos={enrichedPhotos}
+      initialPhotos={[]} // Photos will be loaded on the client side
     />
   );
 }

@@ -206,6 +206,64 @@ export function ClientGallery({
     [syncSelection]
   );
 
+  const resetPanAndZoom = useCallback(() => {
+    setPhotoScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    setSwipeOffset(0);
+    setPhotoOpacity(1);
+  }, []);
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+    resetPanAndZoom();
+  }, [resetPanAndZoom]);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+    resetPanAndZoom();
+  }, [resetPanAndZoom]);
+
+  const navigateNext = useCallback(() => {
+    if (lightboxIndex === null || isTransitioning) return;
+    if (lightboxIndex < filteredPhotos.length - 1) {
+      setIsTransitioning(true);
+      setPhotoOpacity(0);
+      setTimeout(() => {
+        setLightboxIndex(lightboxIndex + 1);
+        resetPanAndZoom();
+        setPhotoScale(1.04);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setPhotoOpacity(1);
+            setPhotoScale(1);
+            setIsTransitioning(false);
+          });
+        });
+      }, 250);
+    }
+  }, [lightboxIndex, isTransitioning, filteredPhotos.length, resetPanAndZoom]);
+
+  const navigatePrev = useCallback(() => {
+    if (lightboxIndex === null || isTransitioning) return;
+    if (lightboxIndex > 0) {
+      setIsTransitioning(true);
+      setPhotoOpacity(0);
+      setPhotoScale(0.92);
+      setTimeout(() => {
+        setLightboxIndex(lightboxIndex - 1);
+        resetPanAndZoom();
+        setPhotoScale(1.04);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setPhotoOpacity(1);
+            setPhotoScale(1);
+            setIsTransitioning(false);
+          });
+        });
+      }, 250);
+    }
+  }, [lightboxIndex, isTransitioning, resetPanAndZoom]);
+
   const handleSelect = useCallback(() => {
     if (!currentPhoto || isActioning) return;
     setIsActioning(true);
@@ -319,66 +377,6 @@ export function ClientGallery({
   const [photoOpacity, setPhotoOpacity] = useState(1);
   const [photoScale, setPhotoScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-
-  const resetPanAndZoom = useCallback(() => {
-    setPhotoScale(1);
-    setPanOffset({ x: 0, y: 0 });
-    setSwipeOffset(0);
-    setPhotoOpacity(1);
-  }, []);
-
-  const openLightbox = (index: number) => {
-    setLightboxIndex(index);
-    resetPanAndZoom();
-  };
-
-  const closeLightbox = () => {
-    setLightboxIndex(null);
-    resetPanAndZoom();
-  };
-
-  const navigateNext = () => {
-    if (lightboxIndex === null || isTransitioning) return;
-    if (lightboxIndex < filteredPhotos.length - 1) {
-      setIsTransitioning(true);
-      // Fade out + shrink
-      setPhotoOpacity(0);
-       setTimeout(() => {
-        setLightboxIndex(lightboxIndex + 1);
-        // Reset position, then fade in
-        resetPanAndZoom();
-        setPhotoScale(1.04);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setPhotoOpacity(1);
-            setPhotoScale(1);
-            setIsTransitioning(false);
-          });
-        });
-      }, 250);
-    }
-  };
-
-  const navigatePrev = () => {
-    if (lightboxIndex === null || isTransitioning) return;
-    if (lightboxIndex > 0) {
-      setIsTransitioning(true);
-      setPhotoOpacity(0);
-      setPhotoScale(0.92);
-      setTimeout(() => {
-        setLightboxIndex(lightboxIndex - 1);
-        resetPanAndZoom();
-        setPhotoScale(1.04);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setPhotoOpacity(1);
-            setPhotoScale(1);
-            setIsTransitioning(false);
-          });
-        });
-      }, 250);
-    }
-  };
 
   // Protection: Disable right-click, dragging, and common shortcuts
   useEffect(() => {
