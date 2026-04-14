@@ -43,6 +43,8 @@ interface ClientGalleryProps {
   studioName: string;
   photos: Photo[];
   albumId: string;
+  selectionMap: Record<string, PhotoStatus>;
+  totalPhotosCount: number;
 }
 
 const STORAGE_KEY_PREFIX = "studiosmart_gallery_";
@@ -52,19 +54,20 @@ export function ClientGallery({
   studioName,
   photos: initialPhotos,
   albumId,
+  selectionMap,
+  totalPhotosCount,
 }: ClientGalleryProps) {
   const params = useParams();
   const token = params.token as string | undefined;
   const storageKey = `${STORAGE_KEY_PREFIX}${albumId}`;
 
-  // Always start with server-safe defaults (no localStorage)
-  const [statuses, setStatuses] = useState<Record<string, PhotoStatus>>(() => {
-    const initial: Record<string, PhotoStatus> = {};
-    initialPhotos.forEach((p) => {
-      initial[p.id] = p.selectionStatus || "unreviewed";
-    });
-    return initial;
-  });
+  const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(totalPhotosCount > initialPhotos.length);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Always start with selectionMap (full state for the album)
+  const [statuses, setStatuses] = useState<Record<string, PhotoStatus>>(selectionMap);
 
   const [activeTab, setActiveTab] = useState<FilterTab>("unreviewed");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -102,14 +105,10 @@ export function ClientGallery({
       // Restore statuses from session but prioritize server-side selections
       setStatuses((prev) => {
         const merged = { ...prev };
-        initialPhotos.forEach((p) => {
-          // 1. If server HAS a status (selected/rejected), always prefer server
-          if (p.selectionStatus && p.selectionStatus !== "unreviewed") {
-            merged[p.id] = p.selectionStatus;
-          }
-          // 2. Otherwise, check if local storage has a valid status
-          else if (session.statuses[p.id]) {
-            merged[p.id] = session.statuses[p.id];
+        // We use the full selectionMap from props as the ground truth
+        Object.entries(selectionMap).forEach(([id, status]) => {
+          if (status !== "unreviewed") {
+            merged[id] = status;
           }
         });
         return merged;
@@ -132,22 +131,67 @@ export function ClientGallery({
     localStorage.setItem(storageKey, JSON.stringify(session));
   }, [statuses, lightboxIndex, storageKey, sessionLoaded]);
 
-  // Calculate counts
+  // Calculate counts accurately using totalPhotosCount
   const counts = useMemo(() => {
-    const c = { unreviewed: 0, selected: 0, rejected: 0, all: initialPhotos.length };
+    const c = { unreviewed: totalPhotosCount, selected: 0, rejected: 0, all: totalPhotosCount };
     Object.values(statuses).forEach((s) => {
-      if (s === "unreviewed") c.unreviewed++;
-      else if (s === "selected") c.selected++;
-      else if (s === "rejected") c.rejected++;
+      if (s === "selected") {
+        c.selected++;
+        c.unreviewed--;
+      }
+      else if (s === "rejected") {
+        c.rejected++;
+        c.unreviewed--;
+      }
     });
     return c;
-  }, [statuses, initialPhotos.length]);
+  }, [statuses, totalPhotosCount]);
 
-  // Filtered photos based on active tab
+  // Filtered photos based on active tab - works on already loaded photos
   const filteredPhotos = useMemo(() => {
-    if (activeTab === "all") return initialPhotos;
-    return initialPhotos.filter((p) => statuses[p.id] === activeTab);
-  }, [initialPhotos, statuses, activeTab]);
+    if (activeTab === "all") return photos;
+    return photos.filter((p) => (statuses[p.id] || "unreviewed") === activeTab);
+  }, [photos, statuses, activeTab]);
+
+  // Load more logic
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !token) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res = await fetch(`/api/gallery/${token}/photos?page=${nextPage}&limit=50`);
+      if (!res.ok) throw new Error("Failed to load more photos");
+      const data = await res.json();
+      
+      setPhotos(prev => [...prev, ...data.photos]);
+      setHasMore(data.hasMore);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Load more failed:", error);
+      toast.error("Failed to load more photos");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [page, hasMore, isLoadingMore, token]);
+
+  const observerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const currentRef = observerRef.current;
+    if (!currentRef || !hasMore || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "200px" }
+    );
+
+    observer.observe(currentRef);
+    return () => observer.disconnect();
+  }, [loadMore, hasMore, isLoadingMore]);
 
   const isLightboxOpen = lightboxIndex !== null;
   const currentPhoto = isLightboxOpen ? filteredPhotos[lightboxIndex] : null;
@@ -753,6 +797,27 @@ export function ClientGallery({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Intersection Observer target for infinite scroll */}
+        {hasMore && (
+          <div 
+            ref={observerRef} 
+            className="col-span-full h-32 flex flex-col items-center justify-center mt-8 border-t border-white/[0.05]"
+          >
+            <div className="relative">
+              <Sparkles className="w-6 h-6 text-amber-500 animate-pulse" />
+              <div className="absolute inset-0 blur-lg bg-amber-500/20 animate-pulse" />
+            </div>
+            <span className="mt-3 text-[10px] text-white/40 uppercase tracking-[0.2em] font-bold">
+              Loading amazing shots
+            </span>
+            <div className="mt-4 flex gap-1">
+              <div className="w-1 h-1 rounded-full bg-white/20 animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-1 h-1 rounded-full bg-white/20 animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-1 h-1 rounded-full bg-white/20 animate-bounce" />
+            </div>
           </div>
         )}
       </main>

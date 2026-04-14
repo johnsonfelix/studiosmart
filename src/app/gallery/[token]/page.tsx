@@ -7,9 +7,9 @@ export const metadata = { title: "Client Gallery | StudioSmart" };
 export default async function ClientGalleryPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   
-  const album = await getAlbumByToken(token);
+  const albumData = await getAlbumByToken(token);
 
-  if (!album || !album.isActive) {
+  if (!albumData || !albumData.isActive) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0a0a0a] p-4">
         <div className="p-10 text-center max-w-sm w-full rounded-2xl bg-white/[0.04] border border-white/[0.08] shadow-2xl">
@@ -27,9 +27,9 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
     );
   }
 
-  // Enrich photos with presigned URLs
+  // Enrich initial batch of photos with presigned URLs
   const enrichedPhotos = await Promise.all(
-    (album.photos || []).map(async (photo: any) => ({
+    (albumData.photos || []).map(async (photo: any) => ({
       ...photo,
       previewUrl: (await generatePresignedGetUrl(photo.previewUrl)) || "",
       thumbnailUrl: (await generatePresignedGetUrl(photo.thumbnailUrl)) || "",
@@ -39,10 +39,12 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
 
   return (
     <ClientGallery
-      albumTitle={album.title}
-      studioName={album.studio.name}
+      albumTitle={albumData.title}
+      studioName={albumData.studio.name}
       photos={enrichedPhotos}
-      albumId={album.id}
+      albumId={albumData.id}
+      selectionMap={albumData.selectionMap}
+      totalPhotosCount={albumData.totalPhotos}
     />
   );
 }

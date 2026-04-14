@@ -4,7 +4,8 @@ import { getAlbumsByStudio } from "@/services/album.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { Plus, Folders } from "lucide-react";
+import { Plus, Folders, Clock, AlertTriangle } from "lucide-react";
+import { differenceInDays, addDays } from "date-fns";
 
 export const metadata = { title: "Albums | StudioSmart" };
 
@@ -37,22 +38,49 @@ export default async function AlbumsPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {albums.map((album) => (
-            <Link href={`/studio/albums/${album.id}`} key={album.id}>
-              <Card className="hover:border-primary/50 transition-colors h-full flex flex-col cursor-pointer">
-                <CardHeader>
-                  <CardTitle>{album.title}</CardTitle>
-                  <CardDescription>Client: {album.client?.name}</CardDescription>
-                </CardHeader>
-                <CardContent className="mt-auto">
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>{album._count?.photos} photos</span>
-                    <span>{new Date(album.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          {albums.map((album) => {
+            const expiryDate = album.expiresAt 
+              ? new Date(album.expiresAt) 
+              : addDays(new Date(album.createdAt), 180);
+              
+            const daysLeft = differenceInDays(expiryDate, new Date());
+            const isNearDeletion = daysLeft <= 30;
+
+            return (
+              <Link href={`/studio/albums/${album.id}`} key={album.id}>
+                <Card className="hover:border-primary/50 transition-shadow h-full flex flex-col cursor-pointer border-t-4 border-t-transparent hover:border-t-primary/50 transition-all duration-300">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="line-clamp-1">{album.title}</CardTitle>
+                      {isNearDeletion && (
+                        <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 ml-2" />
+                      )}
+                    </div>
+                    <CardDescription className="line-clamp-1">Client: {album.client?.name}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="mt-auto pt-0">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>{album._count?.photos} photos</span>
+                        <span>{new Date(album.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      
+                      {daysLeft !== null && (
+                        <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md ${
+                          isNearDeletion 
+                            ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                            : "bg-muted text-muted-foreground border border-muted"
+                        }`}>
+                          <Clock className="w-3 h-3" />
+                          <span>Deleting in {daysLeft} days</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
