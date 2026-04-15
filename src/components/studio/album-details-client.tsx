@@ -17,6 +17,7 @@ interface AlbumDetailsClientProps {
   photoCount: number;
   galleryUrl: string;
   initialPhotos: any[];
+  initialLocked: boolean;
 }
 
 export function AlbumDetailsClient({
@@ -26,12 +27,15 @@ export function AlbumDetailsClient({
   photoCount,
   galleryUrl,
   initialPhotos,
+  initialLocked,
 }: AlbumDetailsClientProps) {
   const router = useRouter();
   const [photos, setPhotos] = useState(initialPhotos);
   const [isDeleting, setIsDeleting] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [activeTab, setActiveTab] = useState("upload");
+  const [isLocked, setIsLocked] = useState(initialLocked);
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const fetchPhotos = async () => {
     setLoadingPhotos(true);
@@ -86,6 +90,29 @@ export function AlbumDetailsClient({
     }
   };
 
+  const handleUnlock = async () => {
+    if (!window.confirm("Unlock selection? This will allow the client to make changes to their photo selection again.")) {
+      return;
+    }
+
+    setIsUnlocking(true);
+    try {
+      const res = await fetch(`/api/albums/${albumId}/unlock`, {
+        method: "POST",
+      });
+
+      if (!res.ok) throw new Error("Failed to unlock selection");
+
+      setIsLocked(false);
+      toast.success("Selection unlocked successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error unlocking selection");
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -95,10 +122,25 @@ export function AlbumDetailsClient({
             <span>Client: {clientName || "N/A"}</span>
             <span>•</span>
             <span>{photoCount} photos</span>
+            <span>•</span>
+            <span className={`font-semibold ${isLocked ? "text-emerald-500" : "text-amber-500"}`}>
+              Selection: {isLocked ? "Locked" : "Open"}
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {isLocked && (
+            <Button 
+                variant="outline" 
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                onClick={handleUnlock}
+                disabled={isUnlocking}
+            >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                {isUnlocking ? "Unlocking..." : "Unlock Selection"}
+            </Button>
+          )}
           <Button 
             variant="outline" 
             className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"

@@ -7,6 +7,7 @@ export async function createAlbum(
     title: string;
     studioId: string;
     clientId: string;
+    isMagic?: boolean;
   },
   tx?: any
 ) {
@@ -24,10 +25,11 @@ export async function createAlbum(
 }
 
 export async function getAlbumsByStudio(
-  studioId: string
+  studioId: string,
+  isMagic: boolean = false
 ): Promise<AlbumWithCounts[]> {
   const albums = await prisma.album.findMany({
-    where: { studioId },
+    where: { studioId, isMagic },
     include: {
       _count: {
         select: { photos: true },
@@ -54,15 +56,18 @@ export async function getAlbumById(id: string, studioId?: string) {
       photos: {
         orderBy: { fileName: "asc" },
       },
+      magicRegistrations: {
+        orderBy: { createdAt: "desc" },
+      },
       _count: {
-        select: { photos: true },
+        select: { photos: true, magicRegistrations: true },
       },
     },
   });
 }
 
 export async function getAlbumByToken(accessToken: string, limit: number = 50) {
-  const album = await prisma.album.findUnique({
+  const album = await prisma.album.findFirst({
     where: { accessToken, isActive: true },
     include: {
       studio: { select: { id: true, name: true } },

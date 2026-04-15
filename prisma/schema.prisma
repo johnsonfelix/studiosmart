@@ -94,14 +94,18 @@ model Album {
   studioId    String
   clientId    String
   isActive    Boolean   @default(true)
+  isMagic     Boolean   @default(false)
   accessToken String    @unique @default(cuid())
   expiresAt   DateTime?
+  selectionLocked Boolean @default(false)
+  selectionSubmittedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   photos Photo[]
+  magicRegistrations MagicRegistration[]
 
   @@map("albums")
 }
@@ -116,12 +120,14 @@ model Photo {
   width        Int      @default(0)
   height       Int      @default(0)
   fileSize     Int      @default(0)
+  faceIds      String[] @default([])
   createdAt    DateTime @default(now())
 
   album      Album       @relation(fields: [albumId], references: [id], onDelete: Cascade)
   selections Selection[]
 
   @@index([albumId])
+  @@index([faceIds])
   @@map("photos")
 }
 
@@ -140,4 +146,19 @@ model Selection {
 
   @@unique([photoId, clientId])
   @@map("selections")
+}
+
+model MagicRegistration {
+  id        String   @id @default(cuid())
+  albumId   String
+  email     String
+  selfieUrl String
+  status    String   @default("PENDING") // PENDING, SENT, FAILED, NO_MATCH
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  @@unique([albumId, email])
+  @@map("magic_registrations")
 }

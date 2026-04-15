@@ -28,10 +28,12 @@ export async function POST(req: Request) {
     }
 
     // 2. Try Token Auth (fallback or primary)
+    let isLocked = false;
     if (!clientId && token) {
       const album = await getAlbumByToken(token);
       if (album) {
         clientId = album.clientId;
+        isLocked = !!album.selectionLocked;
       } else {
         return NextResponse.json({ error: "Invalid access token" }, { status: 401 });
       }
@@ -39,6 +41,14 @@ export async function POST(req: Request) {
 
     if (!clientId) {
       return NextResponse.json({ error: "Please log in or use a valid gallery link" }, { status: 401 });
+    }
+
+    // 3. Block if locked
+    if (isLocked) {
+      return NextResponse.json(
+        { error: "Selection is locked. Please contact the studio owner if you need to make changes." },
+        { status: 403 }
+      );
     }
 
     const selection = await toggleSelection(photoId, clientId, isSelected);

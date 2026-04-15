@@ -43,6 +43,8 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
       studioName={albumData.studio.name}
       photos={enrichedPhotos}
       albumId={albumData.id}
+      token={token}
+      selectionLocked={!!albumData.selectionLocked}
       selectionMap={albumData.selectionMap}
       totalPhotosCount={albumData.totalPhotos}
     />

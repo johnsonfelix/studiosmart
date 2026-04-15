@@ -38,6 +38,7 @@ export default async function AlbumDetailPage({ params }: { params: Promise<{ id
       photoCount={album._count?.photos || 0}
       galleryUrl={galleryUrl}
       initialPhotos={[]} // Photos will be loaded on the client side
+      initialLocked={!!album.selectionLocked}
     />
   );
 }

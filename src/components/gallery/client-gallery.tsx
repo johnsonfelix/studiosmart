@@ -43,8 +43,10 @@ interface ClientGalleryProps {
   studioName: string;
   photos: Photo[];
   albumId: string;
+  token: string;
   selectionMap: Record<string, PhotoStatus>;
   totalPhotosCount: number;
+  selectionLocked: boolean;
 }
 
 const STORAGE_KEY_PREFIX = "studiosmart_gallery_";
@@ -54,11 +56,11 @@ export function ClientGallery({
   studioName,
   photos: initialPhotos,
   albumId,
+  token,
   selectionMap,
   totalPhotosCount,
+  selectionLocked: initialSelectionLocked,
 }: ClientGalleryProps) {
-  const params = useParams();
-  const token = params.token as string | undefined;
   const storageKey = `${STORAGE_KEY_PREFIX}${albumId}`;
 
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
@@ -78,6 +80,8 @@ export function ClientGallery({
   const [fadeOutIds, setFadeOutIds] = useState<Set<string>>(new Set());
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [isLocked, setIsLocked] = useState(initialSelectionLocked);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -247,8 +251,40 @@ export function ClientGallery({
       else if (newStatus === "rejected") syncSelection(photoId, false);
       else if (newStatus === "unreviewed") syncSelection(photoId, null);
     },
-    [syncSelection]
+    [syncSelection, isLocked]
   );
+  
+  const handleSubmit = async () => {
+    if (isSubmitting || isLocked) return;
+    
+    if (!window.confirm(`Are you sure you want to finalize your selection of ${counts.selected} photos? This will notify the studio owner and lock your gallery for further edits.`)) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/albums/${albumId}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to submit selection");
+      }
+      
+      setIsLocked(true);
+      toast.success("Selection submitted successfully! 🎉");
+      // Scroll to top to show the "Finalized" badge
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error: any) {
+      console.error("Submission failed:", error);
+      toast.error(error.message || "Failed to submit selection. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const resetPanAndZoom = useCallback(() => {
     setPhotoScale(1);
@@ -309,7 +345,7 @@ export function ClientGallery({
   }, [lightboxIndex, isTransitioning, resetPanAndZoom]);
 
   const handleSelect = useCallback(() => {
-    if (!currentPhoto || isActioning) return;
+    if (!currentPhoto || isActioning || isLocked) return;
     setIsActioning(true);
     const isAlreadySelected = statuses[currentPhoto.id] === "selected";
     
@@ -351,7 +387,7 @@ export function ClientGallery({
   }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleReject = useCallback(() => {
-    if (!currentPhoto || isActioning) return;
+    if (!currentPhoto || isActioning || isLocked) return;
     setIsActioning(true);
     updateStatus(currentPhoto.id, "rejected");
     toast("Photo skipped", { icon: "⏭️" });
@@ -381,7 +417,7 @@ export function ClientGallery({
   }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0) return;
+    if (undoStack.length === 0 || isLocked) return;
     const last = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.slice(0, -1));
     setStatuses((prev) => ({ ...prev, [last.id]: last.prevStatus }));
@@ -394,6 +430,7 @@ export function ClientGallery({
 
   // Grid: fade out rejected photos when on "unreviewed" tab
   const handleGridReject = useCallback((photoId: string) => {
+    if (isLocked) return;
     setFadeOutIds((prev) => new Set(prev).add(photoId));
     updateStatus(photoId, "rejected");
     toast("Photo skipped", { icon: "⏭️" });
@@ -408,6 +445,7 @@ export function ClientGallery({
   }, [updateStatus]);
 
   const handleGridSelect = useCallback((photoId: string) => {
+    if (isLocked) return;
     const isAlreadySelected = statuses[photoId] === "selected";
     if (isAlreadySelected) {
       updateStatus(photoId, "unreviewed");
@@ -438,6 +476,7 @@ export function ClientGallery({
       if (e.key === "ArrowLeft") navigatePrev();
       if (e.key === "ArrowRight") navigateNext();
       if (e.key === "Escape") closeLightbox();
+      if (isLocked) return;
       if (e.key === "s" || e.key === "S") handleSelect();
       if (e.key === "x" || e.key === "X") handleReject();
     };
@@ -580,7 +619,13 @@ export function ClientGallery({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {undoStack.length > 0 && !(reviewedPercent === 100 && activeTab === "selected") && (
+              {isLocked && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[11px] font-bold text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Finalized
+                </div>
+              )}
+              {undoStack.length > 0 && !isLocked && !(reviewedPercent === 100 && activeTab === "selected") && (
                 <button
                   onClick={handleUndo}
                   className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] transition-colors"
@@ -827,13 +872,22 @@ export function ClientGallery({
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 animate-[slideUp_0.3s_ease-out]">
           {reviewedPercent === 100 && activeTab === "selected" ? (
             <button
-              onClick={() => {
-                toast.success(`Selection submitted! ${counts.selected} photos finalized 🎉`);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500/15 backdrop-blur-2xl border border-emerald-500/25 shadow-2xl shadow-black/40 hover:bg-emerald-500/25 transition-all active:scale-95 touch-manipulation"
+              onClick={handleSubmit}
+              disabled={isSubmitting || isLocked}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-2xl border shadow-2xl shadow-black/40 transition-all active:scale-95 touch-manipulation ${
+                isLocked 
+                ? "bg-emerald-500/20 border-emerald-500/40 cursor-default" 
+                : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/25"
+              }`}
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-semibold text-emerald-300">Submit Selection</span>
+              {isSubmitting ? (
+                <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              )}
+              <span className="text-sm font-semibold text-emerald-300">
+                {isLocked ? "Selection Finalized" : isSubmitting ? "Submitting..." : "Submit Selection"}
+              </span>
             </button>
           ) : (
             /* Regular Stats Bar */
@@ -979,8 +1033,8 @@ export function ClientGallery({
               {/* Skip / Reject */}
               <button
                 onClick={handleReject}
-                disabled={isActioning}
-                className="group flex flex-col items-center gap-1.5 touch-manipulation"
+                disabled={isActioning || isLocked}
+                className={`group flex flex-col items-center gap-1.5 touch-manipulation ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <div className="w-16 h-16 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white/[0.06] border-2 border-white/[0.1] hover:border-red-500/40 hover:bg-red-500/10 transition-all duration-200 active:scale-75">
                   <XCircle className="w-7 h-7 text-white/50 group-hover:text-red-400 transition-colors" />
@@ -993,8 +1047,8 @@ export function ClientGallery({
               {/* Select / Heart */}
               <button
                 onClick={handleSelect}
-                disabled={isActioning}
-                className="group flex flex-col items-center gap-1.5 touch-manipulation"
+                disabled={isActioning || isLocked}
+                className={`group flex flex-col items-center gap-1.5 touch-manipulation ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <div
                   className={`w-20 h-20 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border-2 transition-all duration-200 active:scale-90 ${

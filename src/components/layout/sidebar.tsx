@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard, Wallet } from "lucide-react";
+import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard, Wallet, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/app/actions";
 
@@ -33,6 +33,7 @@ export function Sidebar({ role }: { role: "ADMIN" | "STUDIO" }) {
   const items = role === "STUDIO" ? [
     { icon: LayoutDashboard, label: "Dashboard", href: "/studio" },
     { icon: Folders, label: "Albums", href: "/studio/albums" },
+    { icon: Wand2, label: "AI Magic Send", href: "/studio/magic" },
     { icon: Users, label: "Clients", href: "/studio/clients" },
     { icon: Wallet, label: "Wallet", href: "/studio/wallet" },
   ] : [

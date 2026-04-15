@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadToS3 } from "@/lib/s3";
+import { indexFaceForPhoto } from "@/services/rekognition.service";
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from "@/lib/constants";
 
 export async function POST(req: Request) {
@@ -63,6 +64,10 @@ export async function POST(req: Request) {
         fileSize: file.size,
       },
     });
+
+    // Run face indexing in the background (we don't strictly need to await it unless serverless timeout is strict, 
+    // but awaiting ensures it completes for Vercel/Lambda)
+    await indexFaceForPhoto(photo.id, albumId, key);
 
     return NextResponse.json({ photo, key });
   } catch (error) {

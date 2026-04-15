@@ -16,6 +16,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/selections") ||
+    pathname.startsWith("/api/gallery") ||
+    (pathname.startsWith("/api/albums") && pathname.endsWith("/submit")) ||
     pathname.startsWith("/public") ||
     pathname.startsWith("/gallery") ||
     pathname === "/"

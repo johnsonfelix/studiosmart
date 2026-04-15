@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, clientName, clientPhone } = await req.json();
+    const { title, clientName, clientPhone, isMagic } = await req.json();
 
     if (!title || !clientName || !clientPhone) {
       return NextResponse.json(
@@ -60,6 +60,12 @@ export async function POST(req: Request) {
               studioId: session.user.studioId!,
             },
           });
+        } else if (client.name !== clientName) {
+          // BUG FIX: Update name if it has changed in the form for this phone number
+          client = await tx.client.update({
+            where: { id: client.id },
+            data: { name: clientName }
+          });
         }
 
         // 3. Create album
@@ -68,6 +74,7 @@ export async function POST(req: Request) {
             title,
             clientId: client.id,
             studioId: session.user.studioId!,
+            isMagic: isMagic === true,
           },
           tx
         );
