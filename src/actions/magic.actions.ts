@@ -97,8 +97,8 @@ export async function dispatchMagicEmails(albumId: string) {
             const photosWithUrls = await Promise.all(
               matchedPhotos.map(async (photo) => ({
                 id: photo.id,
-                fullResUrl: photo.originalUrl ? await generatePresignedGetUrl(photo.originalUrl) || "" : "",
-                previewUrl: photo.previewUrl ? await generatePresignedGetUrl(photo.previewUrl) || "" : "",
+                fullResUrl: photo.originalUrl ? await generatePresignedGetUrl(photo.originalUrl, 604800) || "" : "",
+                previewUrl: photo.previewUrl ? await generatePresignedGetUrl(photo.previewUrl, 604800) || "" : "",
               }))
             );
 

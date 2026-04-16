@@ -9,9 +9,11 @@ import toast from "react-hot-toast";
 interface MagicPortalClientProps {
   albumId: string;
   eventTitle: string;
+  clientName: string;
+  studioName: string;
 }
 
-export function MagicPortalClient({ albumId, eventTitle }: MagicPortalClientProps) {
+export function MagicPortalClient({ albumId, eventTitle, clientName, studioName }: MagicPortalClientProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [email, setEmail] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
@@ -87,7 +89,7 @@ export function MagicPortalClient({ albumId, eventTitle }: MagicPortalClientProp
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Get Your Event Photos</h2>
         <p className="text-slate-400 text-sm">
-          Snap a selfie and enter your email. We'll automatically identify you in the photos for <span className="font-semibold text-white">{eventTitle}</span> and email them to you.
+          Snap a selfie and enter your email. We&apos;ll automatically identify you in the photos for <span className="font-semibold text-white">{eventTitle}</span> (hosted by <span className="font-semibold text-white">{studioName}</span> for <span className="font-semibold text-white">{clientName}</span>) and email them to you.
         </p>
       </div>
       

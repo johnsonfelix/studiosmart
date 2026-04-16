@@ -49,6 +49,7 @@ export async function uploadToS3(
 
 export async function generatePresignedGetUrl(
   key: string | null,
+  expiresIn: number = SIGNED_URL_EXPIRY,
   bucket: string = DEFAULT_BUCKET
 ): Promise<string | null> {
   if (!key) return null;
@@ -60,7 +61,7 @@ export async function generatePresignedGetUrl(
     Key: key,
   });
 
-  return getSignedUrl(s3Client, command, { expiresIn: SIGNED_URL_EXPIRY });
+  return getSignedUrl(s3Client, command, { expiresIn });
 }
 
 export async function deleteS3Object(key: string, bucket: string = DEFAULT_BUCKET) {

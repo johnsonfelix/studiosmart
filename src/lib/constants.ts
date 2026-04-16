@@ -17,4 +17,4 @@ export const ACCEPTED_IMAGE_TYPES = [
 
 export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
-export const SIGNED_URL_EXPIRY = 3600; // 1 hour in seconds
+export const SIGNED_URL_EXPIRY = 48 * 3600; // 48 hours in seconds
