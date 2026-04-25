@@ -51,6 +51,7 @@ model Studio {
   balance Float    @default(0)
 
   walletTransactions WalletTransaction[]
+  magicLinks         MagicLink[]
 
   @@map("studios")
 }
@@ -106,6 +107,7 @@ model Album {
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   photos Photo[]
   magicRegistrations MagicRegistration[]
+  magicLinks         MagicLink[]
 
   @@map("albums")
 }
@@ -161,4 +163,18 @@ model MagicRegistration {
 
   @@unique([albumId, email])
   @@map("magic_registrations")
+}
+
+model MagicLink {
+  id        String   @id @default(cuid())
+  name      String
+  studioId  String
+  albumId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio    Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  album     Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
+
+  @@map("magic_links")
 }

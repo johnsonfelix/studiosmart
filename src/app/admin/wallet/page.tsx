@@ -2,8 +2,10 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Wallet, CheckSquare, Clock, IndianRupee, CheckCircle } from "lucide-react";
-import { getAllPendingTransactions, getTotalReceivedAmount } from "@/services/wallet.service";
+import { getAllPendingTransactions, getTotalReceivedAmount, getRecentTransactions } from "@/services/wallet.service";
 import { AdminWalletApprovalList } from "@/components/admin/wallet-approval-list";
+import { RecentTransactionsList } from "@/components/admin/recent-transactions-list";
+import { History } from "lucide-react";
 
 export const metadata = {
   title: "Wallet Requests | Admin",
@@ -13,9 +15,10 @@ export default async function AdminWalletPage() {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") redirect("/login");
 
-  const [pendingRequests, totalReceived] = await Promise.all([
+  const [pendingRequests, totalReceived, recentTransactions] = await Promise.all([
     getAllPendingTransactions(),
     getTotalReceivedAmount(),
+    getRecentTransactions(20),
   ]);
   
   // Calculate total amount of pending deposits
@@ -63,20 +66,37 @@ export default async function AdminWalletPage() {
         </Card>
       </div>
 
-      <Card className="shadow-sm">
-        <CardHeader className="bg-muted/10 border-b">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-muted-foreground" />
-            Verification Queue
-          </CardTitle>
-          <CardDescription>
-            Check the reference numbers against your bank/UPI statement before approving.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <AdminWalletApprovalList initialRequests={pendingRequests} />
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-1">
+        <Card className="shadow-sm">
+          <CardHeader className="bg-muted/10 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-muted-foreground" />
+              Verification Queue
+            </CardTitle>
+            <CardDescription>
+              Check the reference numbers against your bank/UPI statement before approving.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <AdminWalletApprovalList initialRequests={pendingRequests} />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader className="bg-muted/10 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="h-5 w-5 text-muted-foreground" />
+              Recent Transactions
+            </CardTitle>
+            <CardDescription>
+              A history of the last 20 wallet activities.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <RecentTransactionsList transactions={recentTransactions as any} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

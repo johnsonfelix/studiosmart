@@ -109,3 +109,17 @@ export async function deductStudioBalance(
     },
   });
 }
+
+export async function getRecentTransactions(limit: number = 20) {
+  return prisma.walletTransaction.findMany({
+    take: limit,
+    include: {
+      studio: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
