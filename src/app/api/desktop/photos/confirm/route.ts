@@ -6,7 +6,7 @@ import { indexFaceForPhoto } from "@/services/rekognition.service";
 export async function POST(req: Request) {
   try {
     const authResult = await verifyDesktopAuth(req);
-    
+
     if (authResult instanceof NextResponse) {
       return authResult; // Unauthorized
     }
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     // Save photos to database using a transaction or creating them one by one to get IDs
     const createdPhotosCount = await prisma.$transaction(async (tx) => {
       const results = await Promise.all(
-        photos.map((p: any) => 
+        photos.map((p: any) =>
           tx.photo.create({
             data: {
               albumId,

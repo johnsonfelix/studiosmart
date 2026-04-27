@@ -40,17 +40,25 @@ export async function indexFaceForPhoto(photoId: string, albumId: string, s3Key:
     console.log(`Found ${faceIds.length} faces for photo ${photoId}`);
 
     if (faceIds.length > 0) {
-      // Update Prisma with extracted Face Ids
+      // Update Prisma with extracted Face Ids - Using set to be safe
       await prisma.photo.update({
         where: { id: photoId },
-        data: { faceIds: { push: faceIds } },
+        data: { faceIds: faceIds },
       });
       console.log(`Saved ${faceIds.length} faceIds for photo ${photoId}`);
+    } else {
+      console.log(`No faces detected in photo ${photoId}`);
     }
     
     return { success: true, faceCount: faceIds.length };
-  } catch (error) {
-    console.error("Face indexing error:", error);
-    return { success: false, error: "Failed to index faces" };
+  } catch (error: any) {
+    console.error("Face indexing error details:", {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      photoId,
+      s3Key
+    });
+    return { success: false, error: error.message || "Failed to index faces" };
   }
 }

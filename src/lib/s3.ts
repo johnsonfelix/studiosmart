@@ -3,7 +3,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { SIGNED_URL_EXPIRY } from "./constants";
 
 export const s3Client = new S3Client({
-  region: process.env.S3_REGION || "us-east-1",
+  region: process.env.S3_REGION || "ap-south-1",
   endpoint: process.env.S3_ENDPOINT && process.env.S3_ENDPOINT.trim() !== "" 
     ? process.env.S3_ENDPOINT 
     : undefined,
