@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-const SIMILARITY_THRESHOLD = 85;
+const SIMILARITY_THRESHOLD = 90;
 
 export async function registerMagicGuest(formData: FormData) {
   try {

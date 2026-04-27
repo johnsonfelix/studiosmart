@@ -6,7 +6,7 @@ import { rekognitionClient } from "@/lib/rekognition";
 import { generatePresignedGetUrl } from "@/lib/s3";
 import { sendMagicPhotosEmail } from "@/services/mail.service";
 
-const SIMILARITY_THRESHOLD = 70;
+const SIMILARITY_THRESHOLD = 90;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -5,8 +5,7 @@ import { rekognitionClient } from "@/lib/rekognition";
 import { prisma } from "@/lib/prisma";
 import { generatePresignedGetUrl } from "@/lib/s3";
 
-const SIMILARITY_THRESHOLD = 85; 
-
+const SIMILARITY_THRESHOLD = 90;
 export async function matchGuestSelfie(formData: FormData) {
   try {
     const selfieFile = formData.get("selfie") as File;
