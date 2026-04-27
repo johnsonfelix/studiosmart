@@ -6,7 +6,7 @@ import { rekognitionClient } from "@/lib/rekognition";
 import { generatePresignedGetUrl } from "@/lib/s3";
 import { sendMagicPhotosEmail } from "@/services/mail.service";
 
-const SIMILARITY_THRESHOLD = 85;
+const SIMILARITY_THRESHOLD = 70;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,8 +24,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    // Process PENDING, NO_MATCH and FAILED guests for retry
     const pendingGuests = await prisma.magicRegistration.findMany({
-      where: { albumId, status: "PENDING" },
+      where: { 
+        albumId, 
+        status: { in: ["PENDING", "NO_MATCH", "FAILED"] } 
+      },
     });
 
     if (pendingGuests.length === 0) {
