@@ -85,6 +85,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 });
                 sentCount++;
                 continue;
+              } else {
+                console.error(`Email failed for ${guest.email}:`, emailResult?.error);
+                await prisma.magicRegistration.update({
+                  where: { id: guest.id },
+                  data: { status: "FAILED" },
+                });
+                continue;
               }
             }
           }
@@ -95,7 +102,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           data: { status: "NO_MATCH" },
         });
       } catch (rekError: any) {
-        console.error(`Rekognition error for ${guest.email}:`, rekError.name);
+        console.error(`Rekognition error for ${guest.email}:`, rekError);
         await prisma.magicRegistration.update({
           where: { id: guest.id },
           data: { status: "FAILED" },
