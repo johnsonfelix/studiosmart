@@ -50,7 +50,9 @@ export async function POST(req: Request) {
         // We don't await this to keep the response fast, or we can await it if we want reliability
         // For desktop app, it's better to index now
         await Promise.all(
-          results.map((p) => indexFaceForPhoto(p.id, albumId, p.originalUrl))
+          results
+            .filter((p) => p.originalUrl !== null)
+            .map((p) => indexFaceForPhoto(p.id, albumId, p.originalUrl!))
         );
       }
 
