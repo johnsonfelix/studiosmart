@@ -47,7 +47,8 @@ export async function POST(req: Request) {
     }
 
     // Upload to S3
-    const key = `studios/${session.user.studioId}/albums/${albumId}/${Date.now()}-${file.name}`;
+    const folder = album.isMagic ? "magic" : "albums";
+    const key = `studios/${session.user.studioId}/${folder}/${albumId}/${Date.now()}-${file.name}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     await uploadToS3(key, buffer, file.type);
 
@@ -65,9 +66,20 @@ export async function POST(req: Request) {
       },
     });
 
-    // Run face indexing in the background (we don't strictly need to await it unless serverless timeout is strict, 
-    // but awaiting ensures it completes for Vercel/Lambda)
-    await indexFaceForPhoto(photo.id, albumId, key);
+    // Run face indexing in the background 
+    if (album.isMagic) {
+      await prisma.album.update({
+        where: { id: albumId },
+        data: { isIndexing: true },
+      });
+      
+      await indexFaceForPhoto(photo.id, albumId, key);
+
+      await prisma.album.update({
+        where: { id: albumId },
+        data: { isIndexing: false },
+      });
+    }
 
     return NextResponse.json({ photo, key });
   } catch (error) {

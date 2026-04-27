@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Uppy from "@uppy/core";
 import Dashboard from "@uppy/dashboard";
-import AwsS3 from "@uppy/aws-s3";
+import XHRUpload from "@uppy/xhr-upload";
 import toast from "react-hot-toast";
 import "@uppy/core/css/style.css";
 import "@uppy/dashboard/css/style.css";
@@ -38,71 +38,25 @@ export function UppyUploader({ albumId }: UppyUploaderProps) {
         theme: "dark",
         note: "Upload files here.",
       })
-      .use(AwsS3, {
-        shouldUseMultipart: false, // Forces standard S3 upload typing
-        getUploadParameters: async (file) => {
-          const res = await fetch("/api/uppy/presign", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filename: file.name,
-              contentType: file.type,
-              metadata: {
-                albumId: albumId,
-              },
-            }),
-          });
-
-          if (!res.ok) {
-            throw new Error("Failed to get presigned URL");
-          }
-
-          const data = await res.json();
-          return {
-            method: data.method,
-            url: data.url,
-            fields: data.fields,
-            headers: data.headers,
-          };
-        },
+      .use(XHRUpload, {
+        endpoint: "/api/upload",
+        fieldName: "file",
+        formData: true,
+        bundle: false,
+        // Send albumId in the body for /api/upload
+        getCustomData: (file: any) => ({
+          albumId: albumId,
+        }),
       });
-
-    uppyInstance.on("upload-success", async (file, response) => {
-      if (!file) return;
-      try {
-        const uploadUrlObj = new URL(response.uploadURL || "");
-        const s3Key = decodeURIComponent(uploadUrlObj.pathname.substring(1));
-
-        await fetch("/api/uppy/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            key: s3Key,
-            albumId: albumId,
-            filename: file.name,
-            fileSize: file.size,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to confirm upload in DB", err);
-      }
-    });
 
     uppyInstance.on("complete", async (result) => {
       // Guard against potential undefined in TS types
       if (result.successful && result.successful.length > 0) {
-        try {
-          await fetch("/api/uppy/complete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ albumId }),
-          });
-          toast.success(`Successfully uploaded ${result.successful.length} photos! AI Indexing complete.`);
-        } catch (err) {
-          console.error("Failed to mark upload as complete", err);
-        }
+        toast.success(`Successfully uploaded ${result.successful.length} photos! AI Indexing complete.`);
+        // Optional: reload or update parent state
+      }
+      if (result.failed && result.failed.length > 0) {
+        toast.error(`Failed to upload ${result.failed.length} photos.`);
       }
     });
 
