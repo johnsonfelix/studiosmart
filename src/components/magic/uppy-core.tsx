@@ -43,10 +43,6 @@ export function UppyUploader({ albumId }: UppyUploaderProps) {
         fieldName: "file",
         formData: true,
         bundle: false,
-        // Send albumId in the body for /api/upload
-        getCustomData: (file: any) => ({
-          albumId: albumId,
-        }),
       });
 
     uppyInstance.on("complete", async (result) => {
