@@ -74,11 +74,6 @@ export async function POST(req: Request) {
       });
       
       await indexFaceForPhoto(photo.id, albumId, key);
-
-      await prisma.album.update({
-        where: { id: albumId },
-        data: { isIndexing: false },
-      });
     }
 
     return NextResponse.json({ photo, key });
