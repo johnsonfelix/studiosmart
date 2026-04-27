@@ -44,11 +44,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
 
       try {
+        console.log(`Searching faces for guest ${guest.email} using selfie ${guest.selfieUrl}...`);
         const searchResult = await rekognitionClient.send(command);
+        console.log(`Rekognition result for ${guest.email}: ${searchResult.FaceMatches?.length || 0} matches found.`);
         const matchedFaceIds =
           searchResult.FaceMatches?.map((match) => match.Face?.FaceId).filter(
             (id): id is string => !!id
           ) || [];
+        console.log(`Matched Face IDs for ${guest.email}:`, matchedFaceIds);
 
         if (matchedFaceIds.length > 0) {
           const matchedPhotos = await prisma.photo.findMany({

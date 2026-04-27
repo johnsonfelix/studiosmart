@@ -9,12 +9,17 @@ import toast from "react-hot-toast";
 interface DispatchButtonProps {
   albumId: string;
   pendingCount: number;
+  isIndexing?: boolean;
 }
 
-export function DispatchButton({ albumId, pendingCount }: DispatchButtonProps) {
+export function DispatchButton({ albumId, pendingCount, isIndexing = false }: DispatchButtonProps) {
   const [isDispatching, setIsDispatching] = useState(false);
 
   const handleDispatch = async () => {
+    if (isIndexing) {
+      toast.error("AI Indexing is still in progress. Please wait.");
+      return;
+    }
     if (pendingCount === 0) {
       toast.error("No pending guests to process.");
       return;
@@ -44,14 +49,19 @@ export function DispatchButton({ albumId, pendingCount }: DispatchButtonProps) {
   return (
     <Button 
       onClick={handleDispatch} 
-      disabled={isDispatching || pendingCount === 0}
-      className={`w-full gap-2 transition-all duration-300 ${pendingCount > 0 && !isDispatching ? 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : ''}`}
+      disabled={isDispatching || pendingCount === 0 || isIndexing}
+      className={`w-full gap-2 transition-all duration-300 ${pendingCount > 0 && !isDispatching && !isIndexing ? 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : ''}`}
       size="lg"
     >
       {isDispatching ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin" />
           Processing AI Matches...
+        </>
+      ) : isIndexing ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          AI Indexing in Progress...
         </>
       ) : (
         <>

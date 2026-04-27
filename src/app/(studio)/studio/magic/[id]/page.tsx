@@ -159,7 +159,7 @@ export default async function MagicDetailsPage({ params }: { params: Promise<{ i
               <div className="bg-card rounded-xl shadow-sm border p-4">
                 <h3 className="font-semibold text-lg mb-2">Send Magic Emails</h3>
                 <p className="text-sm text-muted-foreground mb-4">Automatically find and send photos to all waiting guests via face match.</p>
-                <DispatchButton albumId={album.id} pendingCount={pendingCount} />
+                <DispatchButton albumId={album.id} pendingCount={pendingCount} isIndexing={album.isIndexing} />
               </div>
 
               <div className="bg-card rounded-xl shadow-sm border p-4">

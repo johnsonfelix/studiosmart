@@ -96,6 +96,7 @@ model Album {
   clientId    String
   isActive    Boolean   @default(true)
   isMagic     Boolean   @default(false)
+  isIndexing  Boolean   @default(false)
   accessToken String    @unique @default(cuid())
   expiresAt   DateTime?
   selectionLocked Boolean @default(false)

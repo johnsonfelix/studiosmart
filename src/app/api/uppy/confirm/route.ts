@@ -28,19 +28,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    // Create photo record in database since Uppy has already put it in S3
-    const photo = await prisma.photo.create({
-      data: {
-        albumId,
-        fileName: filename,
-        previewUrl: key,
-        thumbnailUrl: key,
-        originalUrl: key,
-        width: 0,
-        height: 0,
-        fileSize: fileSize || 0,
-      },
-    });
+    // Create photo record and set indexing status
+    const [photo] = await prisma.$transaction([
+      prisma.photo.create({
+        data: {
+          albumId,
+          fileName: filename,
+          previewUrl: key,
+          thumbnailUrl: key,
+          originalUrl: key,
+          width: 0,
+          height: 0,
+          fileSize: fileSize || 0,
+        },
+      }),
+      prisma.album.update({
+        where: { id: albumId },
+        data: { isIndexing: true },
+      }),
+    ]);
 
     // Background trigger Rekognition indexing directly on the S3 Object
     await indexFaceForPhoto(photo.id, albumId, key);

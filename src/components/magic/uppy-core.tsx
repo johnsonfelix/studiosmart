@@ -90,10 +90,19 @@ export function UppyUploader({ albumId }: UppyUploaderProps) {
       }
     });
 
-    uppyInstance.on("complete", (result) => {
+    uppyInstance.on("complete", async (result) => {
       // Guard against potential undefined in TS types
       if (result.successful && result.successful.length > 0) {
-        toast.success(`Successfully uploaded ${result.successful.length} photos! AI Indexing started.`);
+        try {
+          await fetch("/api/uppy/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ albumId }),
+          });
+          toast.success(`Successfully uploaded ${result.successful.length} photos! AI Indexing complete.`);
+        } catch (err) {
+          console.error("Failed to mark upload as complete", err);
+        }
       }
     });
 

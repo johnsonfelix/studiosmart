@@ -46,14 +46,29 @@ export async function POST(req: Request) {
       );
 
       // If it's a magic album, trigger face indexing
+      console.log(`Checking if album ${albumId} is magic: ${album.isMagic}`);
       if (album.isMagic) {
-        // We don't await this to keep the response fast, or we can await it if we want reliability
-        // For desktop app, it's better to index now
+        // Set indexing status to true
+        await tx.album.update({
+          where: { id: albumId },
+          data: { isIndexing: true }
+        });
+
+        console.log(`Indexing faces for ${results.length} photos in album ${albumId}`);
         await Promise.all(
           results
             .filter((p) => p.originalUrl !== null)
-            .map((p) => indexFaceForPhoto(p.id, albumId, p.originalUrl!))
+            .map((p) => {
+              console.log(`Indexing photo ${p.id} with key ${p.originalUrl}`);
+              return indexFaceForPhoto(p.id, albumId, p.originalUrl!);
+            })
         );
+
+        // Set indexing status to false
+        await tx.album.update({
+          where: { id: albumId },
+          data: { isIndexing: false }
+        });
       }
 
       return results.length;

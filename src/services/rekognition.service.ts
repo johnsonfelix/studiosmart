@@ -21,6 +21,7 @@ export async function indexFaceForPhoto(photoId: string, albumId: string, s3Key:
 
     let response;
     try {
+      console.log(`Calling Rekognition IndexFaces for collection ${albumId}...`);
       response = await rekognitionClient.send(command);
     } catch (err: any) {
       if (err.name === "ResourceNotFoundException") {
@@ -36,12 +37,15 @@ export async function indexFaceForPhoto(photoId: string, albumId: string, s3Key:
     const faceIds = response.FaceRecords?.map((record) => record.Face?.FaceId)
       .filter((id): id is string => !!id) || [];
 
+    console.log(`Found ${faceIds.length} faces for photo ${photoId}`);
+
     if (faceIds.length > 0) {
       // Update Prisma with extracted Face Ids
       await prisma.photo.update({
         where: { id: photoId },
         data: { faceIds: { push: faceIds } },
       });
+      console.log(`Saved ${faceIds.length} faceIds for photo ${photoId}`);
     }
     
     return { success: true, faceCount: faceIds.length };
