@@ -13,7 +13,8 @@ export async function createAlbum(
 ) {
   const prismaClient = tx || prisma;
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 180);
+  const days = data.isMagic ? 14 : 180;
+  expiresAt.setDate(expiresAt.getDate() + days);
 
   return prismaClient.album.create({
     data: {
