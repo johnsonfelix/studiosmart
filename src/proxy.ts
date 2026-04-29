@@ -41,6 +41,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/public") ||
     pathname.startsWith("/guest") ||
     pathname.startsWith("/gallery") ||
+    pathname.startsWith("/s/") ||
     pathname === "/"
   ) {
     return NextResponse.next();
