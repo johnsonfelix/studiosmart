@@ -3,6 +3,11 @@ import { verifyDesktopAuth } from "@/lib/desktop-auth";
 import { prisma } from "@/lib/prisma";
 import { indexFaceForPhoto } from "@/services/rekognition.service";
 
+// Allow up to 5 minutes for large uploads
+export const maxDuration = 300;
+
+const DB_BATCH_SIZE = 50; // Insert photos in batches to avoid transaction timeout
+
 export async function POST(req: Request) {
   try {
     const authResult = await verifyDesktopAuth(req);
@@ -26,30 +31,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Album not found or unauthorized" }, { status: 404 });
     }
 
-    // Save photos to database using a transaction or creating them one by one to get IDs
-    // 1. Save photos to database first
-    const results = await prisma.$transaction(async (tx) => {
-      return await Promise.all(
-        photos.map((p: any) =>
-          tx.photo.create({
-            data: {
-              albumId,
-              fileName: p.fileName,
-              previewUrl: p.keys.preview,
-              thumbnailUrl: p.keys.thumbnail,
-              originalUrl: p.keys.original,
-              fileSize: p.fileSize,
-              width: p.width || 0,
-              height: p.height || 0,
-            }
-          })
-        )
+    // Save photos to database in smaller batched transactions to avoid timeout
+    // Prisma's default interactive transaction timeout is 5s which is too short for 1000+ photos
+    const allResults: any[] = [];
+
+    for (let i = 0; i < photos.length; i += DB_BATCH_SIZE) {
+      const batch = photos.slice(i, i + DB_BATCH_SIZE);
+      const batchResults = await prisma.$transaction(
+        async (tx) => {
+          return await Promise.all(
+            batch.map((p: any) =>
+              tx.photo.create({
+                data: {
+                  albumId,
+                  fileName: p.fileName,
+                  previewUrl: p.keys.preview,
+                  thumbnailUrl: p.keys.thumbnail,
+                  originalUrl: p.keys.original,
+                  fileSize: p.fileSize,
+                  width: p.width || 0,
+                  height: p.height || 0,
+                }
+              })
+            )
+          );
+        },
+        {
+          timeout: 30000, // 30s timeout per batch
+        }
       );
-    });
+      allResults.push(...batchResults);
+    }
 
     // 2. If it's a magic album, trigger face indexing OUTSIDE the transaction
+    // Run in background - don't block the response
     if (album.isMagic) {
-      console.log(`Indexing faces for ${results.length} photos in album ${albumId}`);
+      console.log(`Indexing faces for ${allResults.length} photos in album ${albumId}`);
       
       // Set indexing status to true
       await prisma.album.update({
@@ -57,22 +74,27 @@ export async function POST(req: Request) {
         data: { isIndexing: true }
       });
 
-      try {
-        // Run indexing sequentially or in smaller chunks to avoid overwhelming Rekognition
-        for (const p of results) {
-          if (p.originalUrl) {
-            await indexFaceForPhoto(p.id, albumId, p.originalUrl);
+      // Fire and forget - don't await. This allows the response to return immediately
+      // while face indexing continues in the background on the server.
+      (async () => {
+        try {
+          for (const p of allResults) {
+            if (p.originalUrl) {
+              await indexFaceForPhoto(p.id, albumId, p.originalUrl);
+            }
           }
+        } catch (err) {
+          console.error("Background face indexing error:", err);
+        } finally {
+          await prisma.album.update({
+            where: { id: albumId },
+            data: { isIndexing: false }
+          });
         }
-      } finally {
-        // Always set indexing status to false when done
-        await prisma.album.update({
-          where: { id: albumId },
-          data: { isIndexing: false }
-        });
-      }
+      })();
     }
-    return NextResponse.json({ success: true, count: results.length });
+
+    return NextResponse.json({ success: true, count: allResults.length });
   } catch (error) {
     console.error("Desktop Photo Confirm Error:", error);
     return NextResponse.json({ error: "Failed to save photos" }, { status: 500 });
