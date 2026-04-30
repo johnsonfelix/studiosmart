@@ -28,28 +28,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    // Create photo record and set indexing status
-    const [photo] = await prisma.$transaction([
-      prisma.photo.create({
-        data: {
-          albumId,
-          fileName: filename,
-          previewUrl: key,
-          thumbnailUrl: key,
-          originalUrl: key,
-          width: 0,
-          height: 0,
-          fileSize: fileSize || 0,
-        },
-      }),
-      prisma.album.update({
-        where: { id: albumId },
-        data: { isIndexing: true },
-      }),
-    ]);
+    // Create photo record (No transaction to avoid lock contention on Album row for bulk parallel uploads)
+    const photo = await prisma.photo.create({
+      data: {
+        albumId,
+        fileName: filename,
+        previewUrl: key,
+        thumbnailUrl: key,
+        originalUrl: key,
+        width: 0,
+        height: 0,
+        fileSize: fileSize || 0,
+      },
+    });
 
-    // Background trigger Rekognition indexing directly on the S3 Object
-    await indexFaceForPhoto(photo.id, albumId, key);
+    // Fire and forget: update album status and index face
+    (async () => {
+      try {
+        await prisma.album.update({
+          where: { id: albumId },
+          data: { isIndexing: true },
+        });
+        await indexFaceForPhoto(photo.id, albumId, key);
+      } catch (err) {
+        console.error("Background indexing/update error:", err);
+      }
+    })();
 
     return NextResponse.json({ success: true, photo });
   } catch (error) {

@@ -31,37 +31,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Album not found or unauthorized" }, { status: 404 });
     }
 
-    // Save photos to database in smaller batched transactions to avoid timeout
-    // Prisma's default interactive transaction timeout is 5s which is too short for 1000+ photos
-    const allResults: any[] = [];
-
-    for (let i = 0; i < photos.length; i += DB_BATCH_SIZE) {
-      const batch = photos.slice(i, i + DB_BATCH_SIZE);
-      const batchResults = await prisma.$transaction(
-        async (tx) => {
-          return await Promise.all(
-            batch.map((p: any) =>
-              tx.photo.create({
-                data: {
-                  albumId,
-                  fileName: p.fileName,
-                  previewUrl: p.keys.preview,
-                  thumbnailUrl: p.keys.thumbnail,
-                  originalUrl: p.keys.original,
-                  fileSize: p.fileSize,
-                  width: p.width || 0,
-                  height: p.height || 0,
-                }
-              })
-            )
-          );
-        },
-        {
-          timeout: 30000, // 30s timeout per batch
-        }
-      );
-      allResults.push(...batchResults);
-    }
+    // Save photos to database using a single highly-optimized bulk insert
+    // Prisma's createManyAndReturn works exceptionally well for hundreds/thousands of records
+    const allResults = await prisma.photo.createManyAndReturn({
+      data: photos.map((p: any) => ({
+        albumId,
+        fileName: p.fileName,
+        previewUrl: p.keys.preview,
+        thumbnailUrl: p.keys.thumbnail,
+        originalUrl: p.keys.original,
+        fileSize: p.fileSize,
+        width: p.width || 0,
+        height: p.height || 0,
+      })),
+      skipDuplicates: true, // Prevents failure if a file was accidentally duplicated
+    });
 
     // 2. If it's a magic album, trigger face indexing OUTSIDE the transaction
     // Run in background - don't block the response

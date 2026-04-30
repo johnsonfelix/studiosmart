@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard, Wallet, Wand2 } from "lucide-react";
+import { Camera, Folders, Users, Settings, LogOut, LayoutDashboard, Wallet, Wand2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/app/actions";
 
@@ -41,6 +41,7 @@ export function Sidebar({ role }: { role: "ADMIN" | "STUDIO" }) {
     { icon: Camera, label: "Studios", href: "/admin/studios" },
     { icon: Users, label: "Users", href: "/admin/users" },
     { icon: Wallet, label: "Wallet Requests", href: "/admin/wallet" },
+    { icon: Trash2, label: "Storage Cleanup", href: "/admin/cleanup" },
   ];
 
   const settingsHref = `/${role.toLowerCase()}/settings`;
