@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { generatePresignedGetUrl } from "@/lib/s3";
 
 export async function POST(req: Request) {
   try {
@@ -45,7 +46,8 @@ export async function POST(req: Request) {
         name: user.name,
         email: user.email,
         studioId: user.studio.id,
-        studioName: user.studio.name
+        studioName: user.studio.name,
+        logoUrl: await generatePresignedGetUrl(user.studio.logoUrl)
       }
     });
   } catch (error) {

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const authResult = await verifyDesktopAuth(req);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { title, clientName, clientPhone, isMagic } = await req.json();
+    const { title, clientName, clientPhone, isMagic, eventDate } = await req.json();
 
     if (!title || !clientName || !clientPhone) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -37,7 +37,13 @@ export async function POST(req: Request) {
         }
 
         return await createAlbum(
-          { title, clientId: client.id, studioId: authResult.studioId, isMagic: isMagic === true },
+          { 
+            title, 
+            clientId: client.id, 
+            studioId: authResult.studioId, 
+            isMagic: isMagic === true,
+            eventDate
+          },
           tx
         );
       });

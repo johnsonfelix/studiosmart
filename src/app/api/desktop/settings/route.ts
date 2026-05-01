@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyDesktopAuth } from "@/lib/desktop-auth";
 import { prisma } from "@/lib/prisma";
+import { generatePresignedGetUrl } from "@/lib/s3";
 
 export async function GET(req: Request) {
   try {
@@ -29,6 +30,8 @@ export async function GET(req: Request) {
       ownerName: studio.owner.name,
       email: studio.owner.email,
       phone: studio.owner.phone || "",
+      logoUrl: await generatePresignedGetUrl(studio.logoUrl),
+      logoKey: studio.logoUrl,
     });
   } catch (error) {
     console.error("Desktop Get Settings Error:", error);
@@ -41,7 +44,7 @@ export async function PUT(req: Request) {
     const authResult = await verifyDesktopAuth(req);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { studioName, ownerName, phone } = await req.json();
+    const { studioName, ownerName, phone, logoUrl } = await req.json();
 
     if (!studioName || !ownerName || !phone) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -57,7 +60,10 @@ export async function PUT(req: Request) {
     await prisma.$transaction([
       prisma.studio.update({
         where: { id: studioId },
-        data: { name: studioName },
+        data: { 
+          name: studioName,
+          logoUrl: logoUrl === undefined ? undefined : logoUrl
+        },
       }),
       prisma.user.update({
         where: { id: userId },

@@ -8,6 +8,7 @@ export async function createAlbum(
     studioId: string;
     clientId: string;
     isMagic?: boolean;
+    eventDate?: string;
   },
   tx?: any
 ) {
@@ -21,6 +22,7 @@ export async function createAlbum(
       ...data,
       accessToken: generateAccessToken(),
       expiresAt,
+      eventDate: data.eventDate ? new Date(data.eventDate) : null,
     },
   });
 }
