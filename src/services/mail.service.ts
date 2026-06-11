@@ -19,9 +19,14 @@ export async function sendMagicPhotosEmail(userEmail: string, photos: { previewU
 
   const photoLinksHtml = photos.map(
     (p, i) => `
-    <div style="margin-bottom: 20px;">
-      <p style="margin: 0 0 10px 0; font-weight: bold;">Photo ${i + 1}</p>
-      <img src="${p.previewUrl}" alt="Your Photo" style="max-width: 100%; border-radius: 8px; margin-bottom: 10px;" />
+    <div style="margin-bottom: 30px; text-align: center;">
+      <p style="margin: 0 0 10px 0; font-weight: bold; color: #374151;">Photo ${i + 1}</p>
+      <img src="${p.previewUrl}" alt="Your Photo" style="max-width: 100%; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);" />
+      <div>
+        <a href="${p.fullResUrl}" download="photo-${i + 1}.jpg" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);">
+          ⬇ Download High-Res
+        </a>
+      </div>
     </div>
   `
   ).join("");

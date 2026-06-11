@@ -42,6 +42,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/guest") ||
     pathname.startsWith("/gallery") ||
     pathname.startsWith("/s/") ||
+    pathname === "/digital-invite" ||
+    pathname.startsWith("/invite") ||
     pathname === "/"
   ) {
     return NextResponse.next();
@@ -50,7 +52,11 @@ export async function proxy(request: NextRequest) {
   // Auth pages redirect to dashboard if already logged in
   if (pathname === "/login" || pathname === "/register") {
     if (session) {
-      const redirectUrl = session.user.role === "ADMIN" ? "/admin" : "/studio";
+      let redirectUrl = "/";
+      if (session.user.role === "ADMIN") redirectUrl = "/admin";
+      else if (session.user.role === "STUDIO") redirectUrl = "/studio";
+      else if (session.user.role === "CLIENT") redirectUrl = "/digital-invite/dashboard";
+      
       return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
     return NextResponse.next();
@@ -63,11 +69,11 @@ export async function proxy(request: NextRequest) {
 
   // Role-based access control
   if (pathname.startsWith(protectedRoutes.admin) && session.user.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/studio", request.url));
+    return NextResponse.redirect(new URL(session.user.role === "CLIENT" ? "/digital-invite/dashboard" : "/studio", request.url));
   }
 
   if (pathname.startsWith(protectedRoutes.studio) && session.user.role !== "STUDIO") {
-    return NextResponse.redirect(new URL("/admin", request.url));
+    return NextResponse.redirect(new URL(session.user.role === "CLIENT" ? "/digital-invite/dashboard" : "/admin", request.url));
   }
 
   return NextResponse.next();

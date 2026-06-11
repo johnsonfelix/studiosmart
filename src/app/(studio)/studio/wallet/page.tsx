@@ -56,7 +56,7 @@ export default async function StudioWalletPage() {
               Add Funds
             </CardTitle>
             <CardDescription>
-              Scan the QR code to pay via UPI and submit your payment details.
+              Recharge your wallet instantly online, or use the manual UPI method.
             </CardDescription>
           </CardHeader>
           <CardContent>

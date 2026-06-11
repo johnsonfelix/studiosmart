@@ -48,3 +48,30 @@ export async function createStudioOwner(data: {
 
   return result;
 }
+
+export async function createClientUser(data: {
+  name: string;
+  email: string;
+  passwordRaw: string;
+}) {
+  const existingUser = await prisma.user.findFirst({
+    where: { email: data.email },
+  });
+
+  if (existingUser) {
+    throw new Error("Email already registered");
+  }
+
+  const hashedPassword = await bcrypt.hash(data.passwordRaw, 10);
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      password: hashedPassword,
+      role: Role.CLIENT,
+    },
+  });
+
+  return user;
+}

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       include: { studio: true },
     });
 
-    if (!user || !user.studio) {
+    if (!user || !user.studio || !user.password) {
       return NextResponse.json({ error: "Invalid credentials or not a studio owner" }, { status: 401 });
     }
 

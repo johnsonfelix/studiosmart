@@ -23,16 +23,17 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
-  password  String
+  password  String?
   role      Role     @default(CLIENT)
   phone     String?  @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  studio     Studio?
-  selections Selection[]
-  clients    Client[]    @relation("ClientUser")
+  studio         Studio?
+  selections     Selection[]
+  clients        Client[]        @relation("ClientUser")
+  digitalInvites DigitalInvite[]
 
   @@map("users")
 }
@@ -53,6 +54,7 @@ model Studio {
 
   walletTransactions WalletTransaction[]
   magicLinks         MagicLink[]
+  digitalInvites     DigitalInvite[]
 
   @@map("studios")
 }
@@ -180,4 +182,78 @@ model MagicLink {
   album     Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
 
   @@map("magic_links")
+}
+
+model DigitalInvite {
+  id              String   @id @default(cuid())
+  studioId        String?
+  userId          String?
+  templateId      String   @default("elegant-dark")
+  groomName       String
+  brideName       String
+  heroVideoUrl    String?
+  heroImageUrl    String?
+  bgMusicUrl      String?
+  storyText       String?
+  weddingDate     DateTime?
+  paymentStatus   String   @default("PENDING")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  studio Studio? @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events DigitalInviteEvent[]
+  guests Guest[]
+  rsvps  RSVP[]
+
+  @@map("digital_invites")
+}
+
+model DigitalInviteEvent {
+  id              String   @id @default(cuid())
+  inviteId        String
+  name            String   // e.g., "Haldi", "Sangeet", "Wedding"
+  date            DateTime
+  locationName    String
+  locationUrl     String?  // Google Maps URL
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invite DigitalInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@map("digital_invite_events")
+}
+
+model Guest {
+  id              String   @id @default(cuid())
+  inviteId        String
+  name            String
+  email           String?
+  phone           String?
+  allowedEvents   String[] // Array of event names they are invited to
+  viewedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invite DigitalInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  rsvp   RSVP?
+
+  @@map("guests")
+}
+
+model RSVP {
+  id              String   @id @default(cuid())
+  inviteId        String
+  guestId         String   @unique
+  isAttending     Boolean
+  mealPreference  String?
+  message         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invite DigitalInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  guest  Guest         @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@map("rsvps")
 }

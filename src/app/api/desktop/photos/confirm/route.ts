@@ -47,8 +47,7 @@ export async function POST(req: Request) {
       skipDuplicates: true, // Prevents failure if a file was accidentally duplicated
     });
 
-    // 2. If it's a magic album, trigger face indexing OUTSIDE the transaction
-    // Run in background - don't block the response
+    // 2. If it's a magic album, trigger face indexing SYNCHRONOUSLY
     if (album.isMagic) {
       console.log(`Indexing faces for ${allResults.length} photos in album ${albumId}`);
       
@@ -58,24 +57,27 @@ export async function POST(req: Request) {
         data: { isIndexing: true }
       });
 
-      // Fire and forget - don't await. This allows the response to return immediately
-      // while face indexing continues in the background on the server.
-      (async () => {
-        try {
-          for (const p of allResults) {
-            if (p.originalUrl) {
-              await indexFaceForPhoto(p.id, albumId, p.originalUrl);
-            }
-          }
-        } catch (err) {
-          console.error("Background face indexing error:", err);
-        } finally {
-          await prisma.album.update({
-            where: { id: albumId },
-            data: { isIndexing: false }
-          });
+      // Process in chunks of 5 to avoid AWS rate limits while staying fast
+      try {
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < allResults.length; i += CHUNK_SIZE) {
+          const chunk = allResults.slice(i, i + CHUNK_SIZE);
+          await Promise.all(
+            chunk.map(async (p) => {
+              if (p.originalUrl) {
+                await indexFaceForPhoto(p.id, albumId, p.originalUrl);
+              }
+            })
+          );
         }
-      })();
+      } catch (err) {
+        console.error("Face indexing error:", err);
+      } finally {
+        await prisma.album.update({
+          where: { id: albumId },
+          data: { isIndexing: false }
+        });
+      }
     }
 
     return NextResponse.json({ success: true, count: allResults.length });

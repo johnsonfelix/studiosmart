@@ -42,6 +42,20 @@ export default async function MagicDetailsPage({ params }: { params: Promise<{ i
   // The link that the QR code will direct guests to
   const guestUrl = `${process.env.NEXT_PUBLIC_APP_URL}/guest/magic/${album.id}`;
 
+  // Self-healing UX: if isIndexing is stuck due to a server restart/crash
+  let isIndexingActive = album.isIndexing;
+  if (isIndexingActive) {
+    const lastPhoto = await prisma.photo.findFirst({
+      where: { albumId },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    // If last photo was created more than 5 minutes ago, it's definitely stuck
+    if (lastPhoto && (Date.now() - lastPhoto.createdAt.getTime() > 5 * 60 * 1000)) {
+      isIndexingActive = false;
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -159,7 +173,7 @@ export default async function MagicDetailsPage({ params }: { params: Promise<{ i
               <div className="bg-card rounded-xl shadow-sm border p-4">
                 <h3 className="font-semibold text-lg mb-2">Send Magic Emails</h3>
                 <p className="text-sm text-muted-foreground mb-4">Automatically find and send photos to all waiting guests via face match.</p>
-                <DispatchButton albumId={album.id} pendingCount={pendingCount} isIndexing={album.isIndexing} />
+                <DispatchButton albumId={album.id} pendingCount={pendingCount} isIndexing={isIndexingActive} />
               </div>
 
               <div className="bg-card rounded-xl shadow-sm border p-4">

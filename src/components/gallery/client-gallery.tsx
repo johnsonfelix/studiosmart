@@ -76,12 +76,17 @@ export function ClientGallery({
   const [isActioning, setIsActioning] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
   const [undoStack, setUndoStack] = useState<Array<{ id: string; prevStatus: PhotoStatus }>>([]);
   const [fadeOutIds, setFadeOutIds] = useState<Set<string>>(new Set());
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [isLocked, setIsLocked] = useState(initialSelectionLocked);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoOpacity, setPhotoOpacity] = useState(1);
+  const [photoScale, setPhotoScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isBlurred, setIsBlurred] = useState(false);
 
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -93,6 +98,79 @@ export function ClientGallery({
   const pinchStartScale = useRef(1);
   const isPinching = useRef(false);
   const isSwiping = useRef(false);
+  const isTransitioningRef = useRef(false);
+  const isActioningRef = useRef(false);
+  const blockClicksRef = useRef(false);
+  const hasDraggedRef = useRef(false);
+  const transitionTimeout1Ref = useRef<any>(null);
+  const transitionTimeout2Ref = useRef<any>(null);
+  const transitionTimeout3Ref = useRef<any>(null);
+  const actionTimeoutRef = useRef<any>(null);
+
+  const clearAllTimeouts = useCallback(() => {
+    if (transitionTimeout1Ref.current) clearTimeout(transitionTimeout1Ref.current);
+    if (transitionTimeout2Ref.current) clearTimeout(transitionTimeout2Ref.current);
+    if (transitionTimeout3Ref.current) clearTimeout(transitionTimeout3Ref.current);
+    if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
+
+    transitionTimeout1Ref.current = null;
+    transitionTimeout2Ref.current = null;
+    transitionTimeout3Ref.current = null;
+    actionTimeoutRef.current = null;
+
+    isTransitioningRef.current = false;
+    isActioningRef.current = false;
+    setIsTransitioning(false);
+    setIsSnapping(false);
+    setIsActioning(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimeout1Ref.current) clearTimeout(transitionTimeout1Ref.current);
+      if (transitionTimeout2Ref.current) clearTimeout(transitionTimeout2Ref.current);
+      if (transitionTimeout3Ref.current) clearTimeout(transitionTimeout3Ref.current);
+      if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
+    };
+  }, []);
+
+  // Capture and discard click events when blockClicksRef is active
+  useEffect(() => {
+    const handleClickCapture = (e: MouseEvent) => {
+      if (blockClicksRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener("click", handleClickCapture, true);
+    return () => {
+      window.removeEventListener("click", handleClickCapture, true);
+    };
+  }, []);
+
+  // Blur page when window loses focus or becomes hidden (Screenshot prevention)
+  useEffect(() => {
+    const handleBlur = () => setIsBlurred(true);
+    const handleFocus = () => setIsBlurred(false);
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsBlurred(true);
+      } else {
+        setIsBlurred(false);
+      }
+    };
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   // Load session from localStorage AFTER hydration (client-only)
   useEffect(() => {
@@ -166,7 +244,7 @@ export function ClientGallery({
       const res = await fetch(`/api/gallery/${token}/photos?page=${nextPage}&limit=50`);
       if (!res.ok) throw new Error("Failed to load more photos");
       const data = await res.json();
-      
+
       setPhotos(prev => [...prev, ...data.photos]);
       setHasMore(data.hasMore);
       setPage(nextPage);
@@ -179,7 +257,7 @@ export function ClientGallery({
   }, [page, hasMore, isLoadingMore, token]);
 
   const observerRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const currentRef = observerRef.current;
     if (!currentRef || !hasMore || isLoadingMore) return;
@@ -199,6 +277,16 @@ export function ClientGallery({
 
   const isLightboxOpen = lightboxIndex !== null;
   const currentPhoto = isLightboxOpen ? filteredPhotos[lightboxIndex] : null;
+
+  // Auto-load more photos when user is near the end of loaded photos in lightbox
+  useEffect(() => {
+    if (lightboxIndex !== null && currentPhoto && hasMore && !isLoadingMore) {
+      const mainIndex = photos.findIndex((p) => p.id === currentPhoto.id);
+      if (mainIndex !== -1 && mainIndex >= photos.length - 12) {
+        loadMore();
+      }
+    }
+  }, [lightboxIndex, currentPhoto, photos, hasMore, isLoadingMore, loadMore]);
 
   // Progress percentage
   const reviewedPercent = Math.round(
@@ -253,14 +341,14 @@ export function ClientGallery({
     },
     [syncSelection, isLocked]
   );
-  
+
   const handleSubmit = async () => {
     if (isSubmitting || isLocked) return;
-    
+
     if (!window.confirm(`Are you sure you want to finalize your selection of ${counts.selected} photos? This will notify the studio owner and lock your gallery for further edits.`)) {
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/albums/${albumId}/submit`, {
@@ -268,12 +356,12 @@ export function ClientGallery({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to submit selection");
       }
-      
+
       setIsLocked(true);
       toast.success("Selection submitted successfully! 🎉");
       // Scroll to top to show the "Finalized" badge
@@ -296,59 +384,100 @@ export function ClientGallery({
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index);
     resetPanAndZoom();
+    // Push state to history so back button closes the lightbox
+    window.history.pushState({ lightboxOpen: true }, "");
   }, [resetPanAndZoom]);
 
   const closeLightbox = useCallback(() => {
+    clearAllTimeouts();
     setLightboxIndex(null);
     resetPanAndZoom();
-  }, [resetPanAndZoom]);
+    // Go back in history to clean up the pushed state
+    if (window.history.state?.lightboxOpen) {
+      window.history.back();
+    }
+  }, [resetPanAndZoom, clearAllTimeouts]);
 
   const navigateNext = useCallback(() => {
-    if (lightboxIndex === null || isTransitioning) return;
+    if (lightboxIndex === null || isTransitioningRef.current || isActioningRef.current) return false;
     if (lightboxIndex < filteredPhotos.length - 1) {
+      isTransitioningRef.current = true;
       setIsTransitioning(true);
-      setPhotoOpacity(0);
-      setTimeout(() => {
-        setLightboxIndex(lightboxIndex + 1);
-        resetPanAndZoom();
-        setPhotoScale(1.04);
+
+      // Animate current photo out to the left
+      setSwipeOffset(-window.innerWidth);
+      setPhotoOpacity(0.3);
+
+      transitionTimeout1Ref.current = setTimeout(() => {
+        // Snap to next photo, instantly place it on the right
+        setIsSnapping(true);
+        setLightboxIndex(prev => prev !== null ? prev + 1 : 0);
+        setPhotoScale(1);
+        setPanOffset({ x: 0, y: 0 });
+        setSwipeOffset(window.innerWidth);
+        setPhotoOpacity(1);
+
+        // Guarantee snap is painted before animating back to center
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            setPhotoOpacity(1);
-            setPhotoScale(1);
+            setIsSnapping(false);
+            setSwipeOffset(0);
             setIsTransitioning(false);
+
+            transitionTimeout3Ref.current = setTimeout(() => {
+              isTransitioningRef.current = false;
+            }, 350);
           });
         });
       }, 250);
+      return true;
     }
-  }, [lightboxIndex, isTransitioning, filteredPhotos.length, resetPanAndZoom]);
+    return false;
+  }, [lightboxIndex, filteredPhotos.length]);
 
   const navigatePrev = useCallback(() => {
-    if (lightboxIndex === null || isTransitioning) return;
+    if (lightboxIndex === null || isTransitioningRef.current || isActioningRef.current) return false;
     if (lightboxIndex > 0) {
+      isTransitioningRef.current = true;
       setIsTransitioning(true);
-      setPhotoOpacity(0);
-      setPhotoScale(0.92);
-      setTimeout(() => {
-        setLightboxIndex(lightboxIndex - 1);
-        resetPanAndZoom();
-        setPhotoScale(1.04);
+
+      // Animate current photo out to the right
+      setSwipeOffset(window.innerWidth);
+      setPhotoOpacity(0.3);
+
+      transitionTimeout1Ref.current = setTimeout(() => {
+        // Snap to prev photo, instantly place it on the left
+        setIsSnapping(true);
+        setLightboxIndex(prev => prev !== null ? prev - 1 : 0);
+        setPhotoScale(1);
+        setPanOffset({ x: 0, y: 0 });
+        setSwipeOffset(-window.innerWidth);
+        setPhotoOpacity(1);
+
+        // Guarantee snap is painted before animating back to center
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            setPhotoOpacity(1);
-            setPhotoScale(1);
+            setIsSnapping(false);
+            setSwipeOffset(0);
             setIsTransitioning(false);
+
+            transitionTimeout3Ref.current = setTimeout(() => {
+              isTransitioningRef.current = false;
+            }, 350);
           });
         });
       }, 250);
+      return true;
     }
-  }, [lightboxIndex, isTransitioning, resetPanAndZoom]);
+    return false;
+  }, [lightboxIndex]);
 
   const handleSelect = useCallback(() => {
-    if (!currentPhoto || isActioning || isLocked) return;
+    if (!currentPhoto || isActioningRef.current || isLocked || isTransitioningRef.current) return;
+    isActioningRef.current = true;
     setIsActioning(true);
     const isAlreadySelected = statuses[currentPhoto.id] === "selected";
-    
+
     if (isAlreadySelected) {
       updateStatus(currentPhoto.id, "unreviewed");
       toast("Moved back to unreviewed", { icon: "↩️" });
@@ -356,16 +485,18 @@ export function ClientGallery({
       updateStatus(currentPhoto.id, "selected");
       toast.success("Photo selected ✨");
     }
-    
+
     // Auto-advance logic
-    setTimeout(() => {
+    actionTimeoutRef.current = setTimeout(() => {
       const isReviewTab = activeTab === "unreviewed";
-      
+
       if (isReviewTab) {
         // In review tab, the photo disappears. 
         // If we were at the last photo, close the lightbox.
         // Otherwise, stay at same index (the next photo slides in).
         if (lightboxIndex !== null && lightboxIndex >= filteredPhotos.length - 1) {
+          isActioningRef.current = false;
+          setIsActioning(false);
           closeLightbox();
         } else {
           // Re-trigger the enter animation for the "new" photo that took this index
@@ -377,27 +508,33 @@ export function ClientGallery({
               setPhotoOpacity(1);
             });
           });
+          isActioningRef.current = false;
+          setIsActioning(false);
         }
       } else {
         // In other tabs, the photo stays. Navigate forward.
+        isActioningRef.current = false;
+        setIsActioning(false);
         navigateNext();
       }
-      setIsActioning(false);
     }, 300);
-  }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
+  }, [currentPhoto, statuses, updateStatus, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleReject = useCallback(() => {
-    if (!currentPhoto || isActioning || isLocked) return;
+    if (!currentPhoto || isActioningRef.current || isLocked || isTransitioningRef.current) return;
+    isActioningRef.current = true;
     setIsActioning(true);
     updateStatus(currentPhoto.id, "rejected");
     toast("Photo skipped", { icon: "⏭️" });
 
     // Auto-advance logic
-    setTimeout(() => {
+    actionTimeoutRef.current = setTimeout(() => {
       const isReviewTab = activeTab === "unreviewed";
 
       if (isReviewTab) {
         if (lightboxIndex !== null && lightboxIndex >= filteredPhotos.length - 1) {
+          isActioningRef.current = false;
+          setIsActioning(false);
           closeLightbox();
         } else {
           setPhotoScale(1.04);
@@ -408,16 +545,19 @@ export function ClientGallery({
               setPhotoOpacity(1);
             });
           });
+          isActioningRef.current = false;
+          setIsActioning(false);
         }
       } else {
+        isActioningRef.current = false;
+        setIsActioning(false);
         navigateNext();
       }
-      setIsActioning(false);
     }, 200);
-  }, [currentPhoto, statuses, updateStatus, isActioning, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
+  }, [currentPhoto, updateStatus, activeTab, lightboxIndex, filteredPhotos, navigateNext, closeLightbox]);
 
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0 || isLocked) return;
+    if (undoStack.length === 0 || isLocked || isTransitioningRef.current || isActioningRef.current) return;
     const last = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.slice(0, -1));
     setStatuses((prev) => ({ ...prev, [last.id]: last.prevStatus }));
@@ -456,9 +596,6 @@ export function ClientGallery({
     }
   }, [statuses, updateStatus]);
 
-  const [photoOpacity, setPhotoOpacity] = useState(1);
-  const [photoScale, setPhotoScale] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
   // Protection: Disable right-click, dragging, and common shortcuts
   useEffect(() => {
@@ -470,7 +607,7 @@ export function ClientGallery({
         e.preventDefault();
         return;
       }
-      
+
       // Lightbox navigation
       if (!isLightboxOpen) return;
       if (e.key === "ArrowLeft") navigatePrev();
@@ -484,7 +621,7 @@ export function ClientGallery({
     window.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("dragstart", handleDragStart);
     window.addEventListener("keydown", handleKeyDown);
-    
+
     return () => {
       window.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("dragstart", handleDragStart);
@@ -507,6 +644,7 @@ export function ClientGallery({
       lastTouchY.current = e.touches[0].clientY;
       isPinching.current = false;
       isSwiping.current = false;
+      hasDraggedRef.current = false;
     }
   };
 
@@ -516,11 +654,11 @@ export function ClientGallery({
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.sqrt(dx * dx + dy * dy);
-      
+
       const scaleChange = currentDist / pinchStartDist.current;
       const newScale = Math.max(1, Math.min(pinchStartScale.current * scaleChange, 4));
       setPhotoScale(newScale);
-      
+
       // Prevent swiping while pinching
       isSwiping.current = false;
     } else if (e.touches.length === 1 && !isPinching.current) {
@@ -533,29 +671,35 @@ export function ClientGallery({
         // Handle Panning when zoomed in
         const deltaX = currentX - lastTouchX.current;
         const deltaY = currentY - lastTouchY.current;
-        
+
         setPanOffset(prev => ({
           x: prev.x + deltaX,
           y: prev.y + deltaY
         }));
-        
+
         lastTouchX.current = currentX;
         lastTouchY.current = currentY;
       } else {
         // Handle normal swipe for navigation
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        const isHorizontalSwipe = Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10;
+        if (isSwiping.current || isHorizontalSwipe) {
           isSwiping.current = true;
+          hasDraggedRef.current = true;
           setSwipeOffset(dx);
-          
+
           const progress = Math.min(Math.abs(dx) / (window.innerWidth * 0.5), 1);
           setPhotoOpacity(1 - progress * 0.4);
           setPhotoScale(1 - progress * 0.05);
+
+          if (e.cancelable) {
+            e.preventDefault();
+          }
         }
       }
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (isPinching.current) {
       if (photoScale < 1.05) resetPanAndZoom();
       isPinching.current = false;
@@ -567,18 +711,60 @@ export function ClientGallery({
       if (photoScale < 1.05) resetPanAndZoom();
       return;
     }
-    
+
+    const currentX = e.changedTouches[0].clientX;
+    const finalDx = currentX - touchStartX.current;
     const threshold = window.innerWidth * 0.15;
-    
-    if (swipeOffset < -threshold) {
-      navigateNext();
-    } else if (swipeOffset > threshold) {
-      navigatePrev();
+
+    let navigated = false;
+    if (finalDx < -threshold) {
+      navigated = navigateNext();
+    } else if (finalDx > threshold) {
+      navigated = navigatePrev();
+    }
+
+    if (navigated) {
+      // Handled
     } else {
       resetPanAndZoom();
     }
+
+    if (e.cancelable) {
+      e.preventDefault();
+    }
     isSwiping.current = false;
+
+    // Block synthetic clicks after dragging
+    if (hasDraggedRef.current) {
+      blockClicksRef.current = true;
+      setTimeout(() => {
+        blockClicksRef.current = false;
+      }, 400);
+    }
   };
+
+  // Handle mobile physical/OS back button
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (lightboxIndex !== null) {
+        if (photoScale > 1.05) {
+          // If zoomed in, zoom out instead of closing
+          resetPanAndZoom();
+          window.history.pushState({ lightboxOpen: true }, "");
+        } else {
+          // If zoomed out, close the lightbox
+          clearAllTimeouts();
+          setLightboxIndex(null);
+          resetPanAndZoom();
+        }
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [lightboxIndex, photoScale, resetPanAndZoom, clearAllTimeouts]);
 
   const handleResumeReview = () => {
     setActiveTab("unreviewed");
@@ -602,7 +788,12 @@ export function ClientGallery({
   ];
 
   return (
-    <div id="gallery-container" className="min-h-screen bg-[#0a0a0a] text-white no-select protected-content">
+    <div
+      id="gallery-container"
+      className={`min-h-screen bg-[#0a0a0a] text-white no-select protected-content transition-all duration-500 ease-in-out ${
+        isBlurred ? "blur-3xl scale-[0.98] opacity-10 select-none pointer-events-none" : ""
+      }`}
+    >
       {/* Premium Header */}
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl">
         <div className="px-4 py-3 sm:px-6 max-w-7xl mx-auto">
@@ -660,20 +851,18 @@ export function ClientGallery({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all border touch-manipulation active:scale-[0.96] active:opacity-70 ${
-                  activeTab === tab.key
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all border touch-manipulation active:scale-[0.96] active:opacity-70 ${activeTab === tab.key
                     ? "bg-white/[0.1] border-white/[0.15] text-white"
                     : "bg-transparent border-transparent text-white/40 hover:text-white/60"
-                }`}
+                  }`}
               >
                 {tab.icon}
                 {tab.label}
                 <span
-                  className={`ml-0.5 px-1.5 rounded-full text-[10px] ${
-                    activeTab === tab.key
+                  className={`ml-0.5 px-1.5 rounded-full text-[10px] ${activeTab === tab.key
                       ? "bg-white/[0.12] text-white"
                       : "bg-white/[0.04] text-white/30"
-                  }`}
+                    }`}
                 >
                   {tab.count}
                 </span>
@@ -743,10 +932,10 @@ export function ClientGallery({
               {activeTab === "unreviewed"
                 ? "All photos reviewed! 🎉"
                 : activeTab === "selected"
-                ? "No photos selected yet"
-                : activeTab === "rejected"
-                ? "No skipped photos"
-                : "No photos found"}
+                  ? "No photos selected yet"
+                  : activeTab === "rejected"
+                    ? "No skipped photos"
+                    : "No photos found"}
             </p>
             {activeTab === "unreviewed" && counts.selected > 0 && (
               <button
@@ -766,9 +955,8 @@ export function ClientGallery({
               return (
                 <div
                   key={photo.id}
-                  className={`group relative aspect-[3/4] overflow-hidden rounded-lg sm:rounded-xl bg-white/[0.03] transition-all duration-300 ${
-                    isFadingOut ? "opacity-0 scale-90" : "opacity-100 scale-100"
-                  }`}
+                  className={`group relative aspect-[3/4] overflow-hidden rounded-lg sm:rounded-xl bg-white/[0.03] transition-all duration-300 ${isFadingOut ? "opacity-0 scale-90" : "opacity-100 scale-100"
+                    }`}
                 >
                   {/* Main Image — tappable */}
                   <div
@@ -829,11 +1017,10 @@ export function ClientGallery({
                         e.stopPropagation();
                         handleGridSelect(photo.id);
                       }}
-                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-semibold transition-colors ${
-                        status === "selected"
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-semibold transition-colors ${status === "selected"
                           ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
                           : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
-                      }`}
+                        }`}
                     >
                       <Heart className={`w-3 h-3 ${status === "selected" ? "fill-current" : ""}`} />
                       {status === "selected" ? "Selected" : "Select"}
@@ -847,8 +1034,8 @@ export function ClientGallery({
 
         {/* Intersection Observer target for infinite scroll */}
         {hasMore && (
-          <div 
-            ref={observerRef} 
+          <div
+            ref={observerRef}
             className="col-span-full h-32 flex flex-col items-center justify-center mt-8 border-t border-white/[0.05]"
           >
             <div className="relative">
@@ -874,11 +1061,10 @@ export function ClientGallery({
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || isLocked}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-2xl border shadow-2xl shadow-black/40 transition-all active:scale-95 touch-manipulation ${
-                isLocked 
-                ? "bg-emerald-500/20 border-emerald-500/40 cursor-default" 
-                : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/25"
-              }`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-2xl border shadow-2xl shadow-black/40 transition-all active:scale-95 touch-manipulation ${isLocked
+                  ? "bg-emerald-500/20 border-emerald-500/40 cursor-default"
+                  : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/25"
+                }`}
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
@@ -924,7 +1110,7 @@ export function ClientGallery({
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-white/40 bg-white/[0.06] px-2.5 py-1 rounded-md">
-                {lightboxIndex! + 1} / {filteredPhotos.length}
+                {lightboxIndex! + 1} / {counts[activeTab]}
               </span>
               {statuses[currentPhoto.id] === "selected" && (
                 <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
@@ -952,7 +1138,8 @@ export function ClientGallery({
 
           {/* Photo Container with Swipe/Zoom */}
           <div
-            className="flex-1 flex items-center justify-center relative overflow-hidden"
+            className="flex-1 flex items-center justify-center relative overflow-hidden touch-none"
+            style={{ touchAction: 'none' }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -981,9 +1168,9 @@ export function ClientGallery({
               style={{
                 transform: `translate(${swipeOffset + panOffset.x}px, ${panOffset.y}px) scale(${photoScale})`,
                 opacity: photoOpacity,
-                transition: (isSwiping.current || isPinching.current || photoScale > 1)
+                transition: (isSwiping.current || isPinching.current || photoScale > 1 || isSnapping)
                   ? "none"
-                  : "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease",
+                  : "transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease",
               }}
             >
               <img
@@ -994,10 +1181,23 @@ export function ClientGallery({
                 onContextMenu={(e) => e.preventDefault()}
                 onDragStart={(e) => e.preventDefault()}
               />
-              {/* Invisible protective overlay for mobile long-press - Pass touches to parent */}
+              {/* Repeating Watermark Overlay */}
               <div 
-                className="absolute inset-0 z-10 pointer-events-none sm:pointer-events-auto" 
-                onContextMenu={(e) => e.preventDefault()} 
+                className="absolute inset-0 pointer-events-none z-10 overflow-hidden flex flex-col justify-around select-none opacity-[0.06] rotate-[-25deg] scale-125"
+                aria-hidden="true"
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex justify-around text-[10px] font-black tracking-[0.3em] uppercase text-white whitespace-nowrap">
+                    <span>{studioName} Proof</span>
+                    <span>{studioName} Proof</span>
+                    <span>{studioName} Proof</span>
+                  </div>
+                ))}
+              </div>
+              {/* Invisible protective overlay for mobile long-press - Pass touches to parent */}
+              <div
+                className="absolute inset-0 z-10 pointer-events-none sm:pointer-events-auto"
+                onContextMenu={(e) => e.preventDefault()}
               />
             </div>
           </div>
@@ -1016,13 +1216,12 @@ export function ClientGallery({
                   return (
                     <div
                       key={p.id}
-                      className={`rounded-full transition-all duration-300 ${
-                        actualIndex === lightboxIndex
+                      className={`rounded-full transition-all duration-300 ${actualIndex === lightboxIndex
                           ? "w-6 h-1.5 bg-amber-400"
                           : statuses[p.id] === "selected"
-                          ? "w-1.5 h-1.5 bg-emerald-400"
-                          : "w-1.5 h-1.5 bg-white/20"
-                      }`}
+                            ? "w-1.5 h-1.5 bg-emerald-400"
+                            : "w-1.5 h-1.5 bg-white/20"
+                        }`}
                     />
                   );
                 })}
@@ -1051,11 +1250,10 @@ export function ClientGallery({
                 className={`group flex flex-col items-center gap-1.5 touch-manipulation ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <div
-                  className={`w-20 h-20 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border-2 transition-all duration-200 active:scale-90 ${
-                    statuses[currentPhoto.id] === "selected"
+                  className={`w-20 h-20 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border-2 transition-all duration-200 active:scale-90 ${statuses[currentPhoto.id] === "selected"
                       ? "bg-emerald-500 border-emerald-400 shadow-lg shadow-emerald-500/30"
                       : "bg-gradient-to-br from-amber-500 to-orange-500 border-amber-400 shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50"
-                  }`}
+                    }`}
                 >
                   {statuses[currentPhoto.id] === "selected" ? (
                     <CheckCircle2 className="w-8 h-8 text-white" />
@@ -1064,9 +1262,8 @@ export function ClientGallery({
                   )}
                 </div>
                 <span
-                  className={`text-[10px] uppercase tracking-wider font-bold ${
-                    statuses[currentPhoto.id] === "selected" ? "text-emerald-400" : "text-amber-400"
-                  }`}
+                  className={`text-[10px] uppercase tracking-wider font-bold ${statuses[currentPhoto.id] === "selected" ? "text-emerald-400" : "text-amber-400"
+                    }`}
                 >
                   {statuses[currentPhoto.id] === "selected" ? "Selected" : "Select"}
                 </span>

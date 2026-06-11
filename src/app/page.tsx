@@ -39,6 +39,7 @@ export default function HomePage() {
             <a href="#features" className="hover:text-brand transition-colors">Features</a>
             <a href="#pricing" className="hover:text-brand transition-colors">Pricing</a>
             <a href="#about" className="hover:text-brand transition-colors">About</a>
+            <Link href="/digital-invite" className="hover:text-brand transition-colors">Digital Invites</Link>
           </div>
 
           <div className="flex items-center gap-4">

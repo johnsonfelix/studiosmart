@@ -2,7 +2,7 @@
 
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
-import { createStudioOwner } from "@/services/auth.service";
+import { createStudioOwner, createClientUser } from "@/services/auth.service";
 
 export async function loginUser(formData: FormData) {
   try {
@@ -29,23 +29,32 @@ export async function loginUser(formData: FormData) {
 
 export async function registerUser(formData: FormData) {
   try {
+    const role = formData.get("role") as string;
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
     const password = formData.get("password") as string;
-    const studioName = formData.get("studioName") as string;
 
-    if (!name || !email || !phone || !password || !studioName) {
-      return { error: "Missing required fields." };
+    if (role === "CLIENT") {
+      if (!name || !email || !password) {
+        return { error: "Missing required fields." };
+      }
+      await createClientUser({ name, email, passwordRaw: password });
+    } else {
+      const phone = formData.get("phone") as string;
+      const studioName = formData.get("studioName") as string;
+
+      if (!name || !email || !phone || !password || !studioName) {
+        return { error: "Missing required fields." };
+      }
+
+      await createStudioOwner({
+        name,
+        email,
+        phone,
+        passwordRaw: password,
+        studioName,
+      });
     }
-
-    await createStudioOwner({
-      name,
-      email,
-      phone,
-      passwordRaw: password,
-      studioName,
-    });
 
     return { success: true };
   } catch (error: any) {
