@@ -149,7 +149,7 @@ export function ClientGallery({
     };
   }, []);
 
-  // Blur page when window loses focus or becomes hidden (Screenshot prevention)
+  // Blur page when window loses focus or becomes hidden (Screenshot preventio)
   useEffect(() => {
     const handleBlur = () => setIsBlurred(true);
     const handleFocus = () => setIsBlurred(false);
@@ -790,9 +790,8 @@ export function ClientGallery({
   return (
     <div
       id="gallery-container"
-      className={`min-h-screen bg-[#0a0a0a] text-white no-select protected-content transition-all duration-500 ease-in-out ${
-        isBlurred ? "blur-3xl scale-[0.98] opacity-10 select-none pointer-events-none" : ""
-      }`}
+      className={`min-h-screen bg-[#0a0a0a] text-white no-select protected-content transition-all duration-500 ease-in-out ${isBlurred ? "blur-3xl scale-[0.98] opacity-10 select-none pointer-events-none" : ""
+        }`}
     >
       {/* Premium Header */}
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl">
@@ -852,16 +851,16 @@ export function ClientGallery({
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all border touch-manipulation active:scale-[0.96] active:opacity-70 ${activeTab === tab.key
-                    ? "bg-white/[0.1] border-white/[0.15] text-white"
-                    : "bg-transparent border-transparent text-white/40 hover:text-white/60"
+                  ? "bg-white/[0.1] border-white/[0.15] text-white"
+                  : "bg-transparent border-transparent text-white/40 hover:text-white/60"
                   }`}
               >
                 {tab.icon}
                 {tab.label}
                 <span
                   className={`ml-0.5 px-1.5 rounded-full text-[10px] ${activeTab === tab.key
-                      ? "bg-white/[0.12] text-white"
-                      : "bg-white/[0.04] text-white/30"
+                    ? "bg-white/[0.12] text-white"
+                    : "bg-white/[0.04] text-white/30"
                     }`}
                 >
                   {tab.count}
@@ -1018,8 +1017,8 @@ export function ClientGallery({
                         handleGridSelect(photo.id);
                       }}
                       className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-semibold transition-colors ${status === "selected"
-                          ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
-                          : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                        ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+                        : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
                         }`}
                     >
                       <Heart className={`w-3 h-3 ${status === "selected" ? "fill-current" : ""}`} />
@@ -1062,8 +1061,8 @@ export function ClientGallery({
               onClick={handleSubmit}
               disabled={isSubmitting || isLocked}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-2xl border shadow-2xl shadow-black/40 transition-all active:scale-95 touch-manipulation ${isLocked
-                  ? "bg-emerald-500/20 border-emerald-500/40 cursor-default"
-                  : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/25"
+                ? "bg-emerald-500/20 border-emerald-500/40 cursor-default"
+                : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/25"
                 }`}
             >
               {isSubmitting ? (
@@ -1182,7 +1181,7 @@ export function ClientGallery({
                 onDragStart={(e) => e.preventDefault()}
               />
               {/* Repeating Watermark Overlay */}
-              <div 
+              <div
                 className="absolute inset-0 pointer-events-none z-10 overflow-hidden flex flex-col justify-around select-none opacity-[0.06] rotate-[-25deg] scale-125"
                 aria-hidden="true"
               >
@@ -1217,10 +1216,10 @@ export function ClientGallery({
                     <div
                       key={p.id}
                       className={`rounded-full transition-all duration-300 ${actualIndex === lightboxIndex
-                          ? "w-6 h-1.5 bg-amber-400"
-                          : statuses[p.id] === "selected"
-                            ? "w-1.5 h-1.5 bg-emerald-400"
-                            : "w-1.5 h-1.5 bg-white/20"
+                        ? "w-6 h-1.5 bg-amber-400"
+                        : statuses[p.id] === "selected"
+                          ? "w-1.5 h-1.5 bg-emerald-400"
+                          : "w-1.5 h-1.5 bg-white/20"
                         }`}
                     />
                   );
@@ -1251,8 +1250,8 @@ export function ClientGallery({
               >
                 <div
                   className={`w-20 h-20 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border-2 transition-all duration-200 active:scale-90 ${statuses[currentPhoto.id] === "selected"
-                      ? "bg-emerald-500 border-emerald-400 shadow-lg shadow-emerald-500/30"
-                      : "bg-gradient-to-br from-amber-500 to-orange-500 border-amber-400 shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50"
+                    ? "bg-emerald-500 border-emerald-400 shadow-lg shadow-emerald-500/30"
+                    : "bg-gradient-to-br from-amber-500 to-orange-500 border-amber-400 shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50"
                     }`}
                 >
                   {statuses[currentPhoto.id] === "selected" ? (
