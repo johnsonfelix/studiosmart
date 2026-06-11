@@ -2,10 +2,22 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import Razorpay from "razorpay";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+// Lazy-initialize Razorpay to prevent build-time crashes when env vars are missing
+let razorpayInstance: Razorpay | null = null;
+
+function getRazorpay() {
+  if (!razorpayInstance) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    
+    // Provide fallback only to prevent constructor throwing during build evaluation if ever invoked
+    razorpayInstance = new Razorpay({
+      key_id: keyId || "placeholder_key",
+      key_secret: keySecret || "placeholder_secret",
+    });
+  }
+  return razorpayInstance;
+}
 
 export async function POST(req: Request) {
   try {
@@ -30,7 +42,7 @@ export async function POST(req: Request) {
       receipt: `rcpt_${session.user.studioId?.substring(0, 8)}_${Date.now()}`,
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await getRazorpay().orders.create(options);
 
     return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency });
   } catch (error) {
