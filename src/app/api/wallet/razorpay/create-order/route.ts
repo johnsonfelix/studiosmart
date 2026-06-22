@@ -2,21 +2,18 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import Razorpay from "razorpay";
 
-// Lazy-initialize Razorpay to prevent build-time crashes when env vars are missing
-let razorpayInstance: Razorpay | null = null;
-
 function getRazorpay() {
-  if (!razorpayInstance) {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    
-    // Provide fallback only to prevent constructor throwing during build evaluation if ever invoked
-    razorpayInstance = new Razorpay({
-      key_id: keyId || "placeholder_key",
-      key_secret: keySecret || "placeholder_secret",
-    });
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  
+  if (!keyId || !keySecret) {
+    throw new Error("Razorpay credentials are not configured");
   }
-  return razorpayInstance;
+
+  return new Razorpay({
+    key_id: keyId,
+    key_secret: keySecret,
+  });
 }
 
 export async function POST(req: Request) {
