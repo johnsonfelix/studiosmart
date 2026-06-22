@@ -49,8 +49,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
 
     return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Razorpay Create Order Error:", error);
-    return NextResponse.json({ error: "Failed to create payment order" }, { status: 500 });
+    const message = error?.message || error?.error?.description || "Unknown error";
+    return NextResponse.json({ error: "Failed to create payment order", detail: message }, { status: 500 });
   }
 }
