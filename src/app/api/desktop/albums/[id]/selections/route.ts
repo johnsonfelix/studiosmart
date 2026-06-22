@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { verifyDesktopAuth } from "@/lib/desktop-auth";
 import { prisma } from "@/lib/prisma";
 
+import { generatePresignedGetUrl } from "@/lib/s3";
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const authResult = await verifyDesktopAuth(req);
@@ -25,12 +27,30 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       },
       include: {
         photo: {
-          select: { fileName: true },
+          select: { id: true, fileName: true, thumbnailUrl: true, previewUrl: true },
         },
       },
     });
 
     const selectedFileNames = selections.map((s) => s.photo.fileName);
+
+    const selectedPhotos = await Promise.all(
+      selections.map(async (s) => {
+        const photo = s.photo;
+        const key = photo.thumbnailUrl || photo.previewUrl;
+        let url = null;
+        if (key) {
+          try {
+            url = await generatePresignedGetUrl(key);
+          } catch (_) {}
+        }
+        return {
+          id: photo.id,
+          fileName: photo.fileName,
+          thumbnailUrl: url,
+        };
+      })
+    );
 
     return NextResponse.json({
       albumId,
@@ -38,6 +58,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       selectionLocked: album.selectionLocked,
       selectedCount: selectedFileNames.length,
       selectedFileNames,
+      selectedPhotos,
     });
   } catch (error) {
     console.error("Desktop Selections Error:", error);

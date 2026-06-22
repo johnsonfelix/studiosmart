@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const authResult = await verifyDesktopAuth(req);
     if (authResult instanceof NextResponse) return authResult;
 
-    const { title, clientName, clientPhone, isMagic, eventDate } = await req.json();
+    const { title, clientName, clientPhone, isMagic, eventDate, requirePayment, price } = await req.json();
 
     if (!title || !clientName || !clientPhone) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -42,7 +42,9 @@ export async function POST(req: Request) {
             clientId: client.id, 
             studioId: authResult.studioId, 
             isMagic: isMagic === true,
-            eventDate
+            eventDate,
+            requirePayment: requirePayment === true,
+            price: price ? parseFloat(price) : null
           },
           tx
         );

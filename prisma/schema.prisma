@@ -105,6 +105,11 @@ model Album {
   eventDate   DateTime?
   selectionLocked Boolean @default(false)
   selectionSubmittedAt DateTime?
+  coverUrl    String?
+  requirePayment Boolean @default(false)
+  price          Float?
+  isPaid         Boolean @default(false)
+  paymentId      String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

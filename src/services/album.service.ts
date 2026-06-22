@@ -9,6 +9,8 @@ export async function createAlbum(
     clientId: string;
     isMagic?: boolean;
     eventDate?: string;
+    requirePayment?: boolean;
+    price?: number | null;
   },
   tx?: any
 ) {

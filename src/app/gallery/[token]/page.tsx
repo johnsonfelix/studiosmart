@@ -1,6 +1,7 @@
 import { getAlbumByToken } from "@/services/album.service";
 import { generatePresignedGetUrl } from "@/lib/s3";
 import { ClientGallery } from "@/components/gallery/client-gallery";
+import { GalleryPaymentGateway } from "@/components/gallery/gallery-payment-gateway";
 
 export const metadata = { title: "Client Gallery | StudioSmart" };
 
@@ -24,6 +25,17 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
           </p>
         </div>
       </div>
+    );
+  }
+
+  if (albumData.requirePayment && !albumData.isPaid) {
+    return (
+      <GalleryPaymentGateway 
+        albumToken={token} 
+        albumTitle={albumData.title} 
+        studioName={albumData.studio.name} 
+        price={albumData.price || 0} 
+      />
     );
   }
 
