@@ -174,25 +174,42 @@ export default function HomePage() {
 
         {/* Footer */}
         <footer className="border-t border-white/5 px-6 py-20 mt-32">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="Logo" width={24} height={24} className="opacity-70" />
-              <span className="text-lg font-bold tracking-tight text-white/70">StudioSmart</span>
-            </div>
-            <div className="flex flex-col md:flex-row gap-8 items-center text-sm text-white/40">
-              <a href="mailto:studiosmart94@gmail.com" className="hover:text-brand transition-colors flex items-center gap-2">
-                studiosmart94@gmail.com
-              </a>
-              <a href="tel:+917010997983" className="hover:text-brand transition-colors flex items-center gap-2">
-                +91 7010997983
-              </a>
-              <div className="flex gap-8">
-                <a href="#" className="hover:text-brand transition-colors">Privacy</a>
-                <a href="#" className="hover:text-brand transition-colors">Terms</a>
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-12">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <Image src="/logo.png" alt="Logo" width={24} height={24} className="opacity-70" />
+                  <span className="text-lg font-bold tracking-tight text-white/70">StudioSmart</span>
+                </div>
+                <p className="text-sm text-white/30 max-w-xs">
+                  The fastest and most secure photo proofing platform for professional photographers.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 text-sm">
+                <span className="text-xs font-bold uppercase tracking-widest text-white/20 mb-1">Legal</span>
+                <Link href="/privacy-policy" className="text-white/40 hover:text-brand transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="text-white/40 hover:text-brand transition-colors">Terms &amp; Conditions</Link>
+                <Link href="/refund-policy" className="text-white/40 hover:text-brand transition-colors">Refund &amp; Cancellation</Link>
+                <Link href="/shipping-policy" className="text-white/40 hover:text-brand transition-colors">Shipping &amp; Delivery</Link>
+              </div>
+
+              <div className="flex flex-col gap-3 text-sm">
+                <span className="text-xs font-bold uppercase tracking-widest text-white/20 mb-1">Contact</span>
+                <a href="mailto:studiosmart94@gmail.com" className="text-white/40 hover:text-brand transition-colors">
+                  studiosmart94@gmail.com
+                </a>
+                <a href="tel:+917010997983" className="text-white/40 hover:text-brand transition-colors">
+                  +91 7010997983
+                </a>
+                <Link href="/contact" className="text-white/40 hover:text-brand transition-colors">Contact Us</Link>
               </div>
             </div>
-            <div className="text-xs text-white/20 font-mono uppercase tracking-widest">
-              © 2026 StudioSmart Platform
+
+            <div className="border-t border-white/5 pt-8 text-center">
+              <div className="text-xs text-white/20 font-mono uppercase tracking-widest">
+                © 2026 StudioSmart Platform
+              </div>
             </div>
           </div>
         </footer>
